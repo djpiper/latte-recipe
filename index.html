@@ -1,0 +1,568 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="dark">
+<title>Shot Log</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><text y='26' font-size='26'>☕</text></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    /* the drink, top to bottom */
+    --roast:      #17100C;
+    --roast-lift: #211711;
+    --roast-edge: #33241B;
+    --espresso:   #2A1710;
+    --crema:      #D2903F;
+    --crema-dim:  #8A6229;
+    --milk:       #FBF6EC;
+    --milk-dim:   #A79A8B;
+    --steam:      #6E6055;
+    --sour:       #B9C169;
+
+    --ui: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+    --display: "Instrument Serif", Georgia, serif;
+    --mono: "JetBrains Mono", ui-monospace, Menlo, monospace;
+
+    --gap: 1.5rem;
+    --r: 3px;
+  }
+  *{box-sizing:border-box}
+  html{-webkit-text-size-adjust:100%}
+  body{
+    margin:0; background:var(--roast); color:var(--milk);
+    font-family:var(--ui); font-size:15px; line-height:1.5;
+    -webkit-font-smoothing:antialiased;
+  }
+  button,input,select,textarea{font:inherit;color:inherit}
+  :focus-visible{outline:2px solid var(--crema); outline-offset:2px; border-radius:1px}
+
+  /* ---------- shell ---------- */
+  .wrap{max-width:1180px;margin:0 auto;padding:2.5rem 1.25rem 6rem}
+  header.top{
+    display:flex;align-items:baseline;gap:1rem;flex-wrap:wrap;
+    padding-bottom:1.25rem;margin-bottom:2rem;
+    border-bottom:1px solid var(--roast-edge);
+  }
+  h1{
+    font-family:var(--display); font-weight:400; font-size:clamp(2.4rem,6vw,3.4rem);
+    line-height:.95; margin:0; letter-spacing:-.01em;
+  }
+  h1 em{font-style:italic;color:var(--crema)}
+  .tagline{color:var(--steam);font-size:.82rem;letter-spacing:.09em;text-transform:uppercase;font-family:var(--mono)}
+  .top .spacer{flex:1}
+
+  .cols{display:grid;grid-template-columns:minmax(280px,340px) 1fr;gap:3rem;align-items:start}
+  @media (max-width:860px){.cols{grid-template-columns:1fr;gap:2.5rem}}
+
+  /* ---------- form ---------- */
+  form.pull{position:sticky;top:2rem}
+  @media (max-width:860px){form.pull{position:static}}
+  .sec-label{
+    font-family:var(--mono);font-size:.7rem;letter-spacing:.16em;text-transform:uppercase;
+    color:var(--steam);margin:0 0 .9rem;display:flex;align-items:center;gap:.6rem;
+  }
+  .sec-label::after{content:"";flex:1;height:1px;background:var(--roast-edge)}
+
+  fieldset{border:0;padding:0;margin:0 0 1.4rem}
+  .row{display:grid;grid-template-columns:1fr 1fr;gap:.6rem}
+  .row.three{grid-template-columns:1fr 1fr 1fr}
+  .f{display:flex;flex-direction:column;gap:.3rem;margin-bottom:.6rem;min-width:0}
+  .f label{font-size:.72rem;letter-spacing:.06em;text-transform:uppercase;color:var(--milk-dim)}
+  .f .unit{color:var(--steam);text-transform:none;letter-spacing:0}
+  input,select,textarea{
+    background:var(--roast-lift);border:1px solid var(--roast-edge);border-radius:var(--r);
+    padding:.5rem .6rem;width:100%;font-family:var(--mono);font-size:.95rem;
+  }
+  input[type=text],textarea{font-family:var(--ui);font-size:.9rem}
+  textarea{resize:vertical;min-height:3.4rem;line-height:1.45}
+  input:hover,select:hover,textarea:hover{border-color:#463327}
+  select{appearance:none;background-image:linear-gradient(45deg,transparent 50%,var(--steam) 50%),linear-gradient(135deg,var(--steam) 50%,transparent 50%);background-position:calc(100% - 14px) 50%,calc(100% - 9px) 50%;background-size:5px 5px;background-repeat:no-repeat;padding-right:1.8rem}
+  input::placeholder{color:#4E4038}
+
+  /* rating: ten sips */
+  .rate{display:flex;gap:3px;margin-top:.15rem}
+  .rate input{position:absolute;opacity:0;pointer-events:none}
+  .rate label{
+    flex:1;height:26px;background:var(--roast-lift);border:1px solid var(--roast-edge);
+    border-radius:1px;cursor:pointer;font-size:0;transition:background .12s ease;
+  }
+  .rate:hover label{background:var(--roast-lift)}
+  .rate label.on{background:var(--crema);border-color:var(--crema)}
+  .rate input:focus-visible + label{outline:2px solid var(--crema);outline-offset:2px}
+  .rate-head{display:flex;justify-content:space-between;align-items:baseline}
+  .rate-head b{font-family:var(--mono);color:var(--crema);font-weight:500}
+
+  .calc{
+    font-family:var(--mono);font-size:.78rem;color:var(--steam);
+    display:flex;gap:1.1rem;flex-wrap:wrap;padding:.6rem 0 0;border-top:1px dashed var(--roast-edge);margin-top:.2rem;
+  }
+  .calc b{color:var(--milk);font-weight:500}
+
+  .actions{display:flex;gap:.5rem;margin-top:1.2rem}
+  button{
+    background:none;border:1px solid var(--roast-edge);color:var(--milk);
+    padding:.6rem .9rem;border-radius:var(--r);cursor:pointer;font-size:.85rem;
+    letter-spacing:.02em;transition:border-color .12s ease,background .12s ease;
+  }
+  button:hover{border-color:var(--steam)}
+  button.primary{background:var(--crema);border-color:var(--crema);color:#1A0F07;font-weight:600;flex:1}
+  button.primary:hover{background:#E4A24A;border-color:#E4A24A}
+  button.ghost{color:var(--milk-dim)}
+  button.danger:hover{border-color:#8C4A3C;color:#E38B77}
+
+  /* ---------- log ---------- */
+  .log-head{display:flex;align-items:center;gap:.9rem;flex-wrap:wrap;margin-bottom:1.1rem}
+  .log-head .sec-label{margin:0}
+  .sorts{display:flex;gap:.35rem;margin-left:auto}
+  .sorts button{padding:.3rem .55rem;font-size:.72rem;font-family:var(--mono);letter-spacing:.06em;text-transform:uppercase;color:var(--steam)}
+  .sorts button[aria-pressed=true]{color:var(--roast);background:var(--milk-dim);border-color:var(--milk-dim)}
+
+  ol.shots{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:1px;background:var(--roast-edge);border-block:1px solid var(--roast-edge)}
+  li.shot{background:var(--roast);padding:1rem .25rem 1rem 0;display:grid;grid-template-columns:minmax(90px,140px) 1fr auto;gap:1.25rem;align-items:center}
+  @media (max-width:640px){
+    li.shot{grid-template-columns:1fr auto;gap:.75rem}
+    li.shot .glass{grid-column:1/-1}
+  }
+  li.shot.best{background:linear-gradient(90deg,rgba(210,144,63,.09),transparent 60%)}
+
+  /* signature: the drink itself, drawn to scale */
+  .glass{display:flex;height:44px;border-radius:2px;overflow:hidden;background:var(--roast-lift);box-shadow:inset 0 0 0 1px var(--roast-edge)}
+  .glass .esp{background:linear-gradient(180deg,var(--espresso),#160C08)}
+  .glass .mlk{background:linear-gradient(180deg,#FFFDF7 0%,var(--milk) 42%,#EADFCB 100%)}
+  .glass .foam{background:repeating-linear-gradient(-45deg,#FFFDF8 0 3px,#F2E9DA 3px 6px)}
+
+  .meta{min-width:0}
+  .beans{font-family:var(--display);font-size:1.45rem;line-height:1.15;display:block}
+  .beans .roastnote{font-family:var(--mono);font-size:.62rem;letter-spacing:.14em;text-transform:uppercase;color:var(--crema);vertical-align:middle;margin-left:.55rem}
+  .nums{font-family:var(--mono);font-size:.8rem;color:var(--milk-dim);margin-top:.35rem;display:flex;flex-wrap:wrap;gap:.2rem 1rem}
+  .nums span{white-space:nowrap}
+  .nums b{color:var(--milk);font-weight:500}
+  .note{font-size:.86rem;color:var(--steam);margin-top:.45rem;max-width:60ch;font-style:italic}
+  .when{font-family:var(--mono);font-size:.68rem;letter-spacing:.1em;text-transform:uppercase;color:#4E4038;margin-top:.5rem}
+
+  .score{text-align:right;display:flex;flex-direction:column;align-items:flex-end;gap:.4rem;padding-right:.5rem}
+  .score .n{font-family:var(--display);font-size:2.1rem;line-height:1;color:var(--crema)}
+  .score .n small{font-size:.9rem;color:var(--steam)}
+  .rowbtns{display:flex;gap:.3rem;opacity:.35;transition:opacity .12s ease}
+  li.shot:hover .rowbtns,li.shot:focus-within .rowbtns{opacity:1}
+  .rowbtns button{padding:.22rem .45rem;font-size:.68rem;font-family:var(--mono);letter-spacing:.06em;text-transform:uppercase;color:var(--milk-dim)}
+
+  .empty{padding:3.5rem 0;color:var(--steam);max-width:34ch}
+  .empty p{margin:0 0 .4rem}
+  .empty .big{font-family:var(--display);font-size:1.6rem;color:var(--milk-dim)}
+
+  footer.data{margin-top:2.5rem;padding-top:1.2rem;border-top:1px solid var(--roast-edge);display:flex;gap:.5rem;flex-wrap:wrap;align-items:center}
+  footer.data .count{font-family:var(--mono);font-size:.72rem;color:var(--steam);margin-right:auto;letter-spacing:.08em;text-transform:uppercase}
+
+  .toast{
+    position:fixed;left:50%;bottom:1.5rem;transform:translateX(-50%) translateY(140%);
+    background:var(--milk);color:var(--roast);padding:.6rem 1rem;border-radius:2px;
+    font-size:.85rem;font-weight:600;z-index:9;transition:transform .28s cubic-bezier(.2,.8,.3,1);
+  }
+  .toast.up{transform:translateX(-50%) translateY(0)}
+  @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+  .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="top">
+    <h1>Shot <em>log</em></h1>
+    <div class="spacer"></div>
+    <div class="tagline">One latte, many variables</div>
+  </header>
+
+  <div class="cols">
+
+    <!-- ============ FORM ============ -->
+    <form class="pull" id="form" autocomplete="off">
+      <p class="sec-label" id="formTitle">Log a shot</p>
+
+      <fieldset>
+        <div class="f">
+          <label for="beans">Beans</label>
+          <input type="text" id="beans" name="beans" placeholder="Ethiopia Guji" list="beanlist" required>
+          <datalist id="beanlist"></datalist>
+        </div>
+        <div class="row">
+          <div class="f">
+            <label for="roast">Roast</label>
+            <select id="roast" name="roast">
+              <option>light</option><option selected>medium</option><option>med-dark</option><option>dark</option>
+            </select>
+          </div>
+          <div class="f">
+            <label for="grind">Grind</label>
+            <input type="number" id="grind" name="grind" step="0.1" placeholder="14">
+          </div>
+        </div>
+      </fieldset>
+
+      <fieldset>
+        <p class="sec-label">Espresso</p>
+        <div class="row three">
+          <div class="f">
+            <label for="dose">Dose <span class="unit">g</span></label>
+            <input type="number" id="dose" name="dose" step="0.1" value="18" required>
+          </div>
+          <div class="f">
+            <label for="yield" >Yield <span class="unit">g</span></label>
+            <input type="number" id="yield" name="yield" step="0.1" value="36" required>
+          </div>
+          <div class="f">
+            <label for="time">Time <span class="unit">s</span></label>
+            <input type="number" id="time" name="time" step="1" value="28">
+          </div>
+        </div>
+      </fieldset>
+
+      <fieldset>
+        <p class="sec-label">Milk</p>
+        <div class="f">
+          <label for="milk">Type</label>
+          <select id="milk" name="milk">
+            <option>whole</option><option>2%</option><option>skim</option>
+            <option>oat</option><option>oat barista</option><option>almond</option><option>soy</option><option>none</option>
+          </select>
+        </div>
+        <div class="row three">
+          <div class="f">
+            <label for="milkVol">Volume <span class="unit">ml</span></label>
+            <input type="number" id="milkVol" name="milkVol" step="5" value="180">
+          </div>
+          <div class="f">
+            <label for="milkTemp">Temp <span class="unit">°F</span></label>
+            <input type="number" id="milkTemp" name="milkTemp" step="1" value="140">
+          </div>
+          <div class="f">
+            <label for="foam">Foam <span class="unit">mm</span></label>
+            <input type="number" id="foam" name="foam" step="1" value="8">
+          </div>
+        </div>
+      </fieldset>
+
+      <fieldset>
+        <div class="f">
+          <div class="rate-head">
+            <label for="r7" id="rateLabel">Rating</label>
+            <b id="rateOut">7 / 10</b>
+          </div>
+          <div class="rate" id="rate" role="radiogroup" aria-labelledby="rateLabel"></div>
+        </div>
+        <div class="f">
+          <label for="notes">Tasting notes</label>
+          <textarea id="notes" name="notes" placeholder="Sour on the finish, foam too stiff to pour"></textarea>
+        </div>
+      </fieldset>
+
+      <div class="calc">
+        <span>Brew ratio <b id="cRatio">1:2.0</b></span>
+        <span>Flow <b id="cFlow">1.3 g/s</b></span>
+        <span>Milk:espresso <b id="cDrink">5.0:1</b></span>
+      </div>
+
+      <div class="actions">
+        <button type="submit" class="primary" id="submitBtn">Save shot</button>
+        <button type="button" class="ghost" id="cancelBtn" hidden>Cancel</button>
+      </div>
+    </form>
+
+    <!-- ============ LOG ============ -->
+    <section>
+      <div class="log-head">
+        <p class="sec-label">The log</p>
+        <div class="sorts" id="sorts">
+          <button type="button" data-sort="date" aria-pressed="true">Newest</button>
+          <button type="button" data-sort="rating" aria-pressed="false">Best</button>
+          <button type="button" data-sort="ratio" aria-pressed="false">Ratio</button>
+          <button type="button" data-sort="beans" aria-pressed="false">Beans</button>
+        </div>
+      </div>
+
+      <ol class="shots" id="shots"></ol>
+
+      <div class="empty" id="empty">
+        <p class="big">Nothing pulled yet.</p>
+        <p>Save your first shot on the left. Every entry draws itself to scale, so the log reads as a shelf of drinks — dark bar is espresso, light bar is milk.</p>
+      </div>
+
+      <footer class="data">
+        <span class="count" id="count"></span>
+        <button type="button" id="exportJson">Export JSON</button>
+        <button type="button" id="exportCsv">Export CSV</button>
+        <button type="button" id="importBtn">Import JSON</button>
+        <input type="file" id="importFile" accept="application/json,.json" class="sr">
+        <button type="button" class="danger" id="clearAll">Clear all</button>
+      </footer>
+    </section>
+  </div>
+</div>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script>
+(() => {
+  const KEY = 'latte.shots.v1';
+  const $ = s => document.querySelector(s);
+  const els = {
+    form: $('#form'), shots: $('#shots'), empty: $('#empty'), count: $('#count'),
+    rate: $('#rate'), rateOut: $('#rateOut'), toast: $('#toast'),
+    formTitle: $('#formTitle'), submitBtn: $('#submitBtn'), cancelBtn: $('#cancelBtn'),
+    beanlist: $('#beanlist')
+  };
+
+  let shots = load();
+  let sort = 'date';
+  let editing = null;
+
+  function load() {
+    try { return JSON.parse(localStorage.getItem(KEY)) || []; }
+    catch { return []; }
+  }
+  function save() {
+    localStorage.setItem(KEY, JSON.stringify(shots));
+  }
+  function toast(msg) {
+    els.toast.textContent = msg;
+    els.toast.classList.add('up');
+    clearTimeout(toast.t);
+    toast.t = setTimeout(() => els.toast.classList.remove('up'), 2200);
+  }
+
+  // ---- rating widget: ten sips ----
+  for (let i = 1; i <= 10; i++) {
+    const id = 'r' + i;
+    els.rate.insertAdjacentHTML('beforeend',
+      `<input type="radio" name="rating" id="${id}" value="${i}" ${i === 7 ? 'checked' : ''}>
+       <label for="${id}" title="${i} of 10">${i}</label>`);
+  }
+  function paintRate() {
+    const v = +(els.form.elements.rating.value || 0);
+    els.rate.querySelectorAll('label').forEach((l, i) => l.classList.toggle('on', i < v));
+    els.rateOut.textContent = v + ' / 10';
+  }
+  els.rate.addEventListener('change', paintRate);
+
+  // ---- live derived numbers ----
+  const num = n => { const v = parseFloat(els.form.elements[n].value); return isFinite(v) ? v : 0; };
+  function paintCalc() {
+    const d = num('dose'), y = num('yield'), t = num('time'), m = num('milkVol');
+    $('#cRatio').textContent = d ? '1:' + (y / d).toFixed(1) : '—';
+    $('#cFlow').textContent  = t ? (y / t).toFixed(1) + ' g/s' : '—';
+    $('#cDrink').textContent = y ? (m / y).toFixed(1) + ':1' : '—';
+  }
+  els.form.addEventListener('input', paintCalc);
+
+  // ---- render ----
+  const fmtDate = ts => new Date(ts).toLocaleString(undefined,
+    { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+
+  function sorted() {
+    const s = shots.slice();
+    if (sort === 'date')   s.sort((a, b) => b.ts - a.ts);
+    if (sort === 'rating') s.sort((a, b) => b.rating - a.rating || b.ts - a.ts);
+    if (sort === 'ratio')  s.sort((a, b) => (a.yield / a.dose) - (b.yield / b.dose));
+    if (sort === 'beans')  s.sort((a, b) => a.beans.localeCompare(b.beans) || b.ts - a.ts);
+    return s;
+  }
+
+  function render() {
+    const list = sorted();
+    const best = shots.length ? Math.max(...shots.map(s => s.rating)) : 0;
+    // widest drink sets the scale so volumes are comparable across rows
+    const widest = Math.max(1, ...shots.map(s => (+s.yield || 0) + (+s.milkVol || 0)));
+
+    els.shots.innerHTML = list.map(s => {
+      const total = (+s.yield || 0) + (+s.milkVol || 0);
+      const scale = total / widest;                  // 0..1 of the column
+      const espPct = total ? (s.yield / total) * 100 : 100;
+      const foamPct = Math.min(45, (+s.foam || 0) * 1.6);
+      const milkPct = Math.max(0, 100 - espPct - foamPct);
+      const ratio = s.dose ? (s.yield / s.dose).toFixed(1) : '—';
+      const flow = s.time ? (s.yield / s.time).toFixed(1) : '—';
+      return `
+      <li class="shot${s.rating === best && best > 0 ? ' best' : ''}" data-id="${s.id}">
+        <div class="glass" style="width:${(scale * 100).toFixed(1)}%" role="img"
+             aria-label="${esc(s.yield)} g espresso with ${esc(s.milkVol)} ml ${esc(s.milk)} milk">
+          <div class="esp" style="flex:0 0 ${espPct}%"></div>
+          <div class="mlk" style="flex:0 0 ${milkPct}%"></div>
+          <div class="foam" style="flex:0 0 ${foamPct}%"></div>
+        </div>
+        <div class="meta">
+          <span class="beans">${esc(s.beans)}<span class="roastnote">${esc(s.roast)}${s.grind ? ' · grind ' + esc(s.grind) : ''}</span></span>
+          <div class="nums">
+            <span><b>${esc(s.dose)}</b>g in → <b>${esc(s.yield)}</b>g out</span>
+            <span>1:<b>${ratio}</b></span>
+            <span><b>${esc(s.time)}</b>s · ${flow} g/s</span>
+            <span><b>${esc(s.milkVol)}</b>ml ${esc(s.milk)} @ <b>${esc(s.milkTemp)}</b>°F</span>
+            <span>${esc(s.foam)}mm foam</span>
+          </div>
+          ${s.notes ? `<p class="note">${esc(s.notes)}</p>` : ''}
+          <div class="when">${fmtDate(s.ts)}</div>
+        </div>
+        <div class="score">
+          <div class="n">${s.rating}<small>/10</small></div>
+          <div class="rowbtns">
+            <button type="button" data-act="again">Again</button>
+            <button type="button" data-act="edit">Edit</button>
+            <button type="button" data-act="del" class="danger">Delete</button>
+          </div>
+        </div>
+      </li>`;
+    }).join('');
+
+    els.empty.hidden = shots.length > 0;
+    els.count.textContent = shots.length
+      ? `${shots.length} shot${shots.length > 1 ? 's' : ''} · avg ${(shots.reduce((a, s) => a + s.rating, 0) / shots.length).toFixed(1)}/10`
+      : '';
+
+    const beans = [...new Set(shots.map(s => s.beans))];
+    els.beanlist.innerHTML = beans.map(b => `<option value="${esc(b)}">`).join('');
+  }
+
+  function esc(v) {
+    return String(v ?? '').replace(/[&<>"']/g, c =>
+      ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  }
+
+  // ---- form submit ----
+  els.form.addEventListener('submit', e => {
+    e.preventDefault();
+    const f = els.form.elements;
+    const shot = {
+      id: editing || (Date.now().toString(36) + Math.random().toString(36).slice(2, 6)),
+      ts: editing ? (shots.find(s => s.id === editing).ts) : Date.now(),
+      beans: f.beans.value.trim(), roast: f.roast.value, grind: f.grind.value,
+      dose: +f.dose.value, yield: +f.yield.value, time: +f.time.value,
+      milk: f.milk.value, milkVol: +f.milkVol.value, milkTemp: +f.milkTemp.value,
+      foam: +f.foam.value, rating: +f.rating.value, notes: f.notes.value.trim()
+    };
+    if (editing) {
+      shots[shots.findIndex(s => s.id === editing)] = shot;
+      toast('Shot updated');
+      stopEditing();
+    } else {
+      shots.push(shot);
+      toast('Shot saved');
+      f.notes.value = '';
+    }
+    save(); render(); paintCalc();
+  });
+
+  function fill(s) {
+    const f = els.form.elements;
+    f.beans.value = s.beans; f.roast.value = s.roast; f.grind.value = s.grind;
+    f.dose.value = s.dose; f.yield.value = s.yield; f.time.value = s.time;
+    f.milk.value = s.milk; f.milkVol.value = s.milkVol; f.milkTemp.value = s.milkTemp;
+    f.foam.value = s.foam; f.notes.value = s.notes;
+    els.rate.querySelector(`#r${s.rating}`).checked = true;
+    paintRate(); paintCalc();
+  }
+  function startEditing(s) {
+    editing = s.id;
+    els.formTitle.textContent = 'Edit shot';
+    els.submitBtn.textContent = 'Update shot';
+    els.cancelBtn.hidden = false;
+    fill(s);
+    els.form.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+  function stopEditing() {
+    editing = null;
+    els.formTitle.textContent = 'Log a shot';
+    els.submitBtn.textContent = 'Save shot';
+    els.cancelBtn.hidden = true;
+  }
+  els.cancelBtn.addEventListener('click', stopEditing);
+
+  // ---- row actions ----
+  els.shots.addEventListener('click', e => {
+    const btn = e.target.closest('button[data-act]');
+    if (!btn) return;
+    const id = btn.closest('li.shot').dataset.id;
+    const s = shots.find(x => x.id === id);
+    if (btn.dataset.act === 'edit') startEditing(s);
+    if (btn.dataset.act === 'again') {
+      stopEditing(); fill(s);
+      els.form.elements.notes.value = '';
+      els.form.elements.grind.focus(); els.form.elements.grind.select();
+      toast('Copied to the form — change one thing');
+    }
+    if (btn.dataset.act === 'del') {
+      shots = shots.filter(x => x.id !== id);
+      if (editing === id) stopEditing();
+      save(); render(); toast('Shot deleted');
+    }
+  });
+
+  // ---- sorting ----
+  $('#sorts').addEventListener('click', e => {
+    const b = e.target.closest('button'); if (!b) return;
+    sort = b.dataset.sort;
+    $('#sorts').querySelectorAll('button').forEach(x =>
+      x.setAttribute('aria-pressed', String(x === b)));
+    render();
+  });
+
+  // ---- data in / out ----
+  function download(name, text, type) {
+    const url = URL.createObjectURL(new Blob([text], { type }));
+    const a = document.createElement('a');
+    a.href = url; a.download = name; a.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
+  const stamp = () => new Date().toISOString().slice(0, 10);
+
+  $('#exportJson').addEventListener('click', () =>
+    download(`shot-log-${stamp()}.json`, JSON.stringify(shots, null, 2), 'application/json'));
+
+  $('#exportCsv').addEventListener('click', () => {
+    const cols = ['ts','beans','roast','grind','dose','yield','time','milk','milkVol','milkTemp','foam','rating','notes'];
+    const cell = v => `"${String(v ?? '').replace(/"/g, '""')}"`;
+    const rows = sorted().map(s => [
+      new Date(s.ts).toISOString(),
+      ...cols.slice(1).map(c => s[c])
+    ].map(cell).join(','));
+    download(`shot-log-${stamp()}.csv`,
+      [['date', ...cols.slice(1), 'brew_ratio'].join(','),
+       ...rows.map((r, i) => {
+         const s = sorted()[i];
+         return r + ',' + cell(s.dose ? '1:' + (s.yield / s.dose).toFixed(2) : '');
+       })].join('\n'),
+      'text/csv');
+  });
+
+  $('#importBtn').addEventListener('click', () => $('#importFile').click());
+  $('#importFile').addEventListener('change', async e => {
+    const file = e.target.files[0]; if (!file) return;
+    try {
+      const incoming = JSON.parse(await file.text());
+      if (!Array.isArray(incoming)) throw 0;
+      const have = new Set(shots.map(s => s.id));
+      const added = incoming.filter(s => s && s.id && !have.has(s.id));
+      shots = shots.concat(added);
+      save(); render();
+      toast(`Imported ${added.length} shot${added.length === 1 ? '' : 's'}`);
+    } catch {
+      toast("That file isn't a shot log export");
+    }
+    e.target.value = '';
+  });
+
+  $('#clearAll').addEventListener('click', () => {
+    if (!shots.length) return;
+    const backup = JSON.stringify(shots, null, 2);
+    download(`shot-log-backup-${stamp()}.json`, backup, 'application/json');
+    shots = []; save(); stopEditing(); render();
+    toast('Log cleared — a backup file was saved');
+  });
+
+  paintRate(); paintCalc(); render();
+})();
+</script>
+</body>
+</html>
