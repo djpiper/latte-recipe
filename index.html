@@ -70,6 +70,7 @@
   fieldset{border:0;padding:0;margin:0 0 1.4rem}
   .row{display:grid;grid-template-columns:1fr 1fr;gap:.6rem}
   .row.three{grid-template-columns:1fr 1fr 1fr}
+  .row.four{grid-template-columns:repeat(4,1fr)}
   .f{display:flex;flex-direction:column;gap:.3rem;margin-bottom:.6rem;min-width:0}
   .f label{font-size:.72rem;letter-spacing:.06em;text-transform:uppercase;color:var(--milk-dim)}
   .f .unit{color:var(--steam);text-transform:none;letter-spacing:0}
@@ -205,14 +206,18 @@
 
       <fieldset>
         <p class="sec-label">Espresso</p>
-        <div class="row three">
+        <div class="row four">
           <div class="f">
-            <label for="dose">Dose <span class="unit">g</span></label>
-            <input type="number" id="dose" name="dose" step="0.1" value="18" required>
+            <label for="grindTime">Grind <span class="unit">s</span></label>
+            <input type="number" id="grindTime" name="grindTime" step="0.1" value="12">
           </div>
           <div class="f">
-            <label for="yield" >Yield <span class="unit">g</span></label>
-            <input type="number" id="yield" name="yield" step="0.1" value="36" required>
+            <label for="dose">Dose <span class="unit">g</span></label>
+            <input type="number" id="dose" name="dose" step="0.1" placeholder="—">
+          </div>
+          <div class="f">
+            <label for="yield" >Yield <span class="unit">ml</span></label>
+            <input type="number" id="yield" name="yield" step="1" value="30" required>
           </div>
           <div class="f">
             <label for="time">Time <span class="unit">s</span></label>
@@ -261,8 +266,8 @@
       </fieldset>
 
       <div class="calc">
-        <span>Brew ratio <b id="cRatio">1:2.0</b></span>
-        <span>Flow <b id="cFlow">1.3 g/s</b></span>
+        <span id="cRatioWrap" hidden>Brew ratio <b id="cRatio">—</b></span>
+        <span>Flow <b id="cFlow">1.1 ml/s</b></span>
         <span>Milk:espresso <b id="cDrink">5.0:1</b></span>
       </div>
 
@@ -352,8 +357,10 @@
   const num = n => { const v = parseFloat(els.form.elements[n].value); return isFinite(v) ? v : 0; };
   function paintCalc() {
     const d = num('dose'), y = num('yield'), t = num('time'), m = num('milkVol');
+    // brew ratio needs a weighed dose; hidden entirely when grinding by time alone
+    $('#cRatioWrap').hidden = !d;
     $('#cRatio').textContent = d ? '1:' + (y / d).toFixed(1) : '—';
-    $('#cFlow').textContent  = t ? (y / t).toFixed(1) + ' g/s' : '—';
+    $('#cFlow').textContent  = t ? (y / t).toFixed(1) + ' ml/s' : '—';
     $('#cDrink').textContent = y ? (m / y).toFixed(1) + ':1' : '—';
   }
   els.form.addEventListener('input', paintCalc);
@@ -366,7 +373,9 @@
     const s = shots.slice();
     if (sort === 'date')   s.sort((a, b) => b.ts - a.ts);
     if (sort === 'rating') s.sort((a, b) => b.rating - a.rating || b.ts - a.ts);
-    if (sort === 'ratio')  s.sort((a, b) => (a.yield / a.dose) - (b.yield / b.dose));
+    // shots without a weighed dose have no ratio; park them at the end
+    if (sort === 'ratio')  s.sort((a, b) =>
+      (a.dose ? a.yield / a.dose : Infinity) - (b.dose ? b.yield / b.dose : Infinity));
     if (sort === 'beans')  s.sort((a, b) => a.beans.localeCompare(b.beans) || b.ts - a.ts);
     return s;
   }
@@ -388,7 +397,7 @@
       return `
       <li class="shot${s.rating === best && best > 0 ? ' best' : ''}" data-id="${s.id}">
         <div class="glass" style="width:${(scale * 100).toFixed(1)}%" role="img"
-             aria-label="${esc(s.yield)} g espresso with ${esc(s.milkVol)} ml ${esc(s.milk)} milk">
+             aria-label="${esc(s.yield)} ml espresso with ${esc(s.milkVol)} ml ${esc(s.milk)} milk">
           <div class="esp" style="flex:0 0 ${espPct}%"></div>
           <div class="mlk" style="flex:0 0 ${milkPct}%"></div>
           <div class="foam" style="flex:0 0 ${foamPct}%"></div>
@@ -396,9 +405,9 @@
         <div class="meta">
           <span class="beans">${esc(s.beans)}<span class="roastnote">${esc(s.roast)}${s.grind ? ' · grind ' + esc(s.grind) : ''}</span></span>
           <div class="nums">
-            <span><b>${esc(s.dose)}</b>g in → <b>${esc(s.yield)}</b>g out</span>
-            <span>1:<b>${ratio}</b></span>
-            <span><b>${esc(s.time)}</b>s · ${flow} g/s</span>
+            <span>${s.dose ? `<b>${esc(s.dose)}</b>g` : `<b>${esc(s.grindTime)}</b>s grind`} in → <b>${esc(s.yield)}</b>ml out</span>
+            ${s.dose ? `<span>1:<b>${ratio}</b></span>` : ''}
+            <span><b>${esc(s.time)}</b>s · ${flow} ml/s</span>
             <span><b>${esc(s.milkVol)}</b>ml ${esc(s.milk)} @ <b>${esc(s.milkTemp)}</b>°F</span>
             <span>${esc(s.foam)}mm foam</span>
           </div>
@@ -438,7 +447,8 @@
       id: editing || (Date.now().toString(36) + Math.random().toString(36).slice(2, 6)),
       ts: editing ? (shots.find(s => s.id === editing).ts) : Date.now(),
       beans: f.beans.value.trim(), roast: f.roast.value, grind: f.grind.value,
-      dose: +f.dose.value, yield: +f.yield.value, time: +f.time.value,
+      grindTime: +f.grindTime.value, dose: f.dose.value === '' ? null : +f.dose.value,
+      yield: +f.yield.value, time: +f.time.value,
       milk: f.milk.value, milkVol: +f.milkVol.value, milkTemp: +f.milkTemp.value,
       foam: +f.foam.value, rating: +f.rating.value, notes: f.notes.value.trim()
     };
@@ -457,7 +467,8 @@
   function fill(s) {
     const f = els.form.elements;
     f.beans.value = s.beans; f.roast.value = s.roast; f.grind.value = s.grind;
-    f.dose.value = s.dose; f.yield.value = s.yield; f.time.value = s.time;
+    f.grindTime.value = s.grindTime ?? ''; f.dose.value = s.dose ?? '';
+    f.yield.value = s.yield; f.time.value = s.time;
     f.milk.value = s.milk; f.milkVol.value = s.milkVol; f.milkTemp.value = s.milkTemp;
     f.foam.value = s.foam; f.notes.value = s.notes;
     els.rate.querySelector(`#r${s.rating}`).checked = true;
@@ -521,7 +532,7 @@
     download(`shot-log-${stamp()}.json`, JSON.stringify(shots, null, 2), 'application/json'));
 
   $('#exportCsv').addEventListener('click', () => {
-    const cols = ['ts','beans','roast','grind','dose','yield','time','milk','milkVol','milkTemp','foam','rating','notes'];
+    const cols = ['ts','beans','roast','grind','grindTime','dose','yield','time','milk','milkVol','milkTemp','foam','rating','notes'];
     const cell = v => `"${String(v ?? '').replace(/"/g, '""')}"`;
     const rows = sorted().map(s => [
       new Date(s.ts).toISOString(),
