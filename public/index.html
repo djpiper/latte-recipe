@@ -57,6 +57,13 @@
   .tagline{color:var(--steam);font-size:.82rem;letter-spacing:.09em;text-transform:uppercase;font-family:var(--mono)}
   .top .spacer{flex:1}
 
+  /* who's brewing — the whole identity story */
+  .who{font-family:var(--mono);font-size:.72rem;letter-spacing:.08em;text-transform:uppercase;color:var(--steam)}
+  .who form{display:flex;gap:.35rem;align-items:center}
+  .who input{width:11rem;padding:.3rem .5rem;font-size:.78rem}
+  .who button{padding:.3rem .55rem;font-size:.72rem;font-family:var(--mono);letter-spacing:.06em;text-transform:uppercase}
+  #brewerBtn{color:var(--crema);border-color:var(--roast-edge)}
+
   .cols{display:grid;grid-template-columns:minmax(280px,340px) 1fr;gap:3rem;align-items:start}
   @media (max-width:860px){.cols{grid-template-columns:1fr;gap:2.5rem}}
 
@@ -220,6 +227,14 @@
   <header class="top">
     <h1>Shot <em>log</em></h1>
     <div class="spacer"></div>
+    <div class="who" id="who">
+      <span id="whoName" hidden>brewing as <button type="button" id="brewerBtn"></button></span>
+      <form id="whoForm" hidden autocomplete="off">
+        <label for="brewerInput" class="sr">Your name</label>
+        <input type="text" id="brewerInput" maxlength="32" placeholder="who's brewing?" autocomplete="nickname">
+        <button type="submit">Set</button>
+      </form>
+    </div>
     <div class="tagline">One latte, many variables</div>
   </header>
 
@@ -400,7 +415,7 @@
         <button type="button" id="exportCsv">Export CSV</button>
         <button type="button" id="importBtn">Import JSON</button>
         <input type="file" id="importFile" accept="application/json,.json" class="sr">
-        <button type="button" class="danger" id="clearAll">Clear all</button>
+        <button type="button" id="refreshBtn">Refresh</button>
       </footer>
     </section>
   </div>
@@ -410,8 +425,8 @@
 
 <script>
 (() => {
-  const KEY = 'latte.shots.v2';
-  const KEY_V1 = 'latte.shots.v1';          // pre-iced logs, left in place as a fallback
+  // Shots live on the server now; only the brewer's name is kept locally.
+  const NAME_KEY = 'latte.brewer.v1';
   const SUGGESTED_ADDINS = ['vanilla bean', 'vanilla extract', 'vanilla paste', 'honey',
     'maple syrup', 'salt', 'cinnamon', 'cocoa', 'brown sugar'];
   const $ = s => document.querySelector(s);
@@ -421,13 +436,17 @@
     formTitle: $('#formTitle'), submitBtn: $('#submitBtn'), cancelBtn: $('#cancelBtn'),
     beanlist: $('#beanlist'), addins: $('#addins'), addinNone: $('#addinNone'),
     addinRow: $('#addinRow'), addinlist: $('#addinlist'), stylePick: $('#stylePick'),
-    emptyBig: $('#emptyBig'), emptySub: $('#emptySub')
+    emptyBig: $('#emptyBig'), emptySub: $('#emptySub'),
+    whoName: $('#whoName'), whoForm: $('#whoForm'), brewerBtn: $('#brewerBtn'),
+    brewerInput: $('#brewerInput')
   };
 
-  let shots = load();
+  let shots = [];
   let sort = 'date';
   let filter = 'all';
   let editing = null;
+  let me = (localStorage.getItem(NAME_KEY) || '').trim();
+  let status = 'loading';                   // loading | ready | offline
 
   // every record that reaches the app gets the v2 shape, whatever it arrived as
   function migrate(s) {
@@ -441,20 +460,24 @@
     });
   }
 
-  function load() {
-    const read = k => { try { return JSON.parse(localStorage.getItem(k)); } catch { return null; } };
-    const current = read(KEY);
-    if (Array.isArray(current)) return current.map(migrate);
-    const old = read(KEY_V1);
-    if (Array.isArray(old) && old.length) {
-      const moved = old.map(migrate);
-      localStorage.setItem(KEY, JSON.stringify(moved));   // v1 key stays untouched
-      return moved;
-    }
-    return [];
+  async function api(method, path, body) {
+    const r = await fetch(path, {
+      method,
+      headers: body ? { 'content-type': 'application/json' } : undefined,
+      body: body ? JSON.stringify(body) : undefined
+    });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(j.error || `request failed (${r.status})`);
+    return j;
   }
-  function save() {
-    localStorage.setItem(KEY, JSON.stringify(shots));
+
+  // Rows come back in whatever shape the server has; migrate() still normalizes
+  // them, so a pre-iced record read from the log lands in v2 shape like any other.
+  async function refresh() {
+    const { shots: s } = await api('GET', '/api/shots');
+    shots = s.map(migrate);
+    status = 'ready';
+    render();
   }
   function toast(msg) {
     els.toast.textContent = msg;
@@ -462,6 +485,38 @@
     clearTimeout(toast.t);
     toast.t = setTimeout(() => els.toast.classList.remove('up'), 2200);
   }
+
+  // ---- who's brewing ----
+  // Self-asserted and stored locally. It attributes rows and gates the Edit and
+  // Delete buttons; the server can't verify it, so that gate is courtesy only.
+  const mine = s => !!me && s.brewer === me;
+
+  function paintWho() {
+    const naming = !me || !els.whoForm.hidden;
+    els.brewerBtn.textContent = me;
+    els.whoName.hidden = naming;
+    els.whoForm.hidden = !naming;
+  }
+  function askName() {
+    els.whoForm.hidden = false;
+    paintWho();
+    els.brewerInput.value = me;
+    els.brewerInput.focus();
+    els.brewerInput.select();
+  }
+  els.brewerBtn.addEventListener('click', askName);
+  els.whoForm.addEventListener('submit', e => {
+    e.preventDefault();
+    const name = els.brewerInput.value.trim().slice(0, 32);
+    if (!name) { els.brewerInput.focus(); return; }
+    const renamed = me && me !== name;
+    me = name;
+    localStorage.setItem(NAME_KEY, me);
+    els.whoForm.hidden = true;
+    paintWho();
+    render();   // Edit/Delete gating depends on the name
+    if (renamed) toast('Past shots keep the name they were logged under');
+  });
 
   // ---- hot / iced ----
   function setStyle(style) {
@@ -604,26 +659,32 @@
           ${(s.addins || []).length ? `<div class="chips">${s.addins.map(a =>
             `<span class="chip"><b>${esc(a.name)}</b>${a.amt ? ' · ' + esc(a.amt) + ' ' + esc(a.unit) : ''}</span>`).join('')}</div>` : ''}
           ${s.notes ? `<p class="note">${esc(s.notes)}</p>` : ''}
-          <div class="when">${fmtDate(s.ts)}</div>
+          <div class="when">${esc(s.brewer)} · ${fmtDate(s.ts)}</div>
         </div>
         <div class="score">
           <div class="n">${s.rating}<small>/10</small></div>
           <div class="rowbtns">
             <button type="button" data-act="again">Again</button>
-            <button type="button" data-act="edit">Edit</button>
-            <button type="button" data-act="del" class="danger">Delete</button>
+            ${mine(s) ? `<button type="button" data-act="edit">Edit</button>
+            <button type="button" data-act="del" class="danger">Delete</button>` : ''}
           </div>
         </div>
       </li>`;
     }).join('');
 
     els.empty.hidden = list.length > 0;
-    if (!list.length && shots.length) {
+    if (status === 'loading') {
+      els.emptyBig.textContent = 'Fetching the log…';
+      els.emptySub.textContent = 'Everyone brewing sees the same shared log.';
+    } else if (status === 'offline') {
+      els.emptyBig.textContent = "Can't reach the log.";
+      els.emptySub.textContent = 'The shared log lives on the server — check your connection and hit Refresh.';
+    } else if (!list.length && shots.length) {
       els.emptyBig.textContent = `No ${filter} drinks yet.`;
       els.emptySub.textContent = `You've logged ${shots.length} shot${shots.length > 1 ? 's' : ''}, just none of them ${filter}. Switch the filter back to All, or log one.`;
     } else {
       els.emptyBig.textContent = 'Nothing pulled yet.';
-      els.emptySub.textContent = 'Save your first shot on the left. Every entry draws itself to scale, so the log reads as a shelf of drinks — dark bar is espresso, light bar is milk, cool blue means iced.';
+      els.emptySub.textContent = 'Save the first shot on the left — everyone brewing sees the same shared log. Every entry draws itself to scale, so it reads as a shelf of drinks: dark bar is espresso, light bar is milk, cool blue means iced.';
     }
 
     const avg = l => (l.reduce((a, s) => a + s.rating, 0) / l.length).toFixed(1);
@@ -645,13 +706,18 @@
   }
 
   // ---- form submit ----
-  els.form.addEventListener('submit', e => {
+  // Every mutation paints first and reconciles after, so the form stays as quick
+  // as it was when the log was local. A failed request puts the log back.
+  els.form.addEventListener('submit', async e => {
     e.preventDefault();
+    if (!me) { toast('Add your name first'); askName(); return; }
+
     const f = els.form.elements;
     const iced = els.form.dataset.style === 'iced';
     const shot = {
       id: editing || (Date.now().toString(36) + Math.random().toString(36).slice(2, 6)),
       ts: editing ? (shots.find(s => s.id === editing).ts) : Date.now(),
+      brewer: me,
       style: iced ? 'iced' : 'hot',
       beans: f.beans.value.trim(), roast: f.roast.value, grind: f.grind.value,
       grindTime: +f.grindTime.value, dose: f.dose.value === '' ? null : +f.dose.value,
@@ -665,16 +731,33 @@
       addins: readAddins(),
       rating: +f.rating.value, notes: f.notes.value.trim()
     };
-    if (editing) {
-      shots[shots.findIndex(s => s.id === editing)] = shot;
-      toast('Shot updated');
+    const before = shots.slice();
+    const wasEditing = editing;
+    if (wasEditing) {
+      shots[shots.findIndex(s => s.id === wasEditing)] = shot;
       stopEditing();
     } else {
       shots.push(shot);
-      toast('Shot saved');
-      f.notes.value = '';
     }
-    save(); render(); paintCalc();
+    render(); paintCalc();
+    els.submitBtn.disabled = true;
+
+    try {
+      const { shot: saved } = wasEditing
+        ? await api('PUT', `/api/shots/${encodeURIComponent(shot.id)}`, shot)
+        : await api('POST', '/api/shots', shot);
+      const at = shots.findIndex(s => s.id === saved.id);
+      if (at > -1) shots[at] = migrate(saved);   // the server owns ts
+      render();
+      toast(wasEditing ? 'Shot updated' : 'Shot saved');
+      if (!wasEditing) f.notes.value = '';
+    } catch (err) {
+      shots = before;
+      render();
+      toast(`Not saved — ${err.message}`);
+    } finally {
+      els.submitBtn.disabled = false;
+    }
   });
 
   function fill(rec) {
@@ -711,22 +794,41 @@
   els.cancelBtn.addEventListener('click', stopEditing);
 
   // ---- row actions ----
-  els.shots.addEventListener('click', e => {
+  els.shots.addEventListener('click', async e => {
     const btn = e.target.closest('button[data-act]');
     if (!btn) return;
     const id = btn.closest('li.shot').dataset.id;
     const s = shots.find(x => x.id === id);
-    if (btn.dataset.act === 'edit') startEditing(s);
-    if (btn.dataset.act === 'again') {
+    if (!s) return;
+    const act = btn.dataset.act;
+
+    if (act === 'again') {
       stopEditing(); fill(s);
       els.form.elements.notes.value = '';
       els.form.elements.grind.focus(); els.form.elements.grind.select();
       toast('Copied to the form — change one thing');
+      return;
     }
-    if (btn.dataset.act === 'del') {
+
+    // Edit and Delete are hidden on other brewers' rows; guard anyway so a
+    // hand-edited DOM can't fire one.
+    if (!mine(s)) return;
+
+    if (act === 'edit') startEditing(s);
+
+    if (act === 'del') {
+      const before = shots.slice();
       shots = shots.filter(x => x.id !== id);
       if (editing === id) stopEditing();
-      save(); render(); toast('Shot deleted');
+      render();
+      try {
+        await api('DELETE', `/api/shots/${encodeURIComponent(id)}`);
+        toast('Shot deleted');
+      } catch (err) {
+        shots = before;
+        render();
+        toast(`Not deleted — ${err.message}`);
+      }
     }
   });
 
@@ -761,7 +863,7 @@
     download(`shot-log-${stamp()}.json`, JSON.stringify(shots, null, 2), 'application/json'));
 
   $('#exportCsv').addEventListener('click', () => {
-    const cols = ['ts','style','beans','roast','grind','grindTime','dose','yield','time','milk','milkVol',
+    const cols = ['ts','brewer','style','beans','roast','grind','grindTime','dose','yield','time','milk','milkVol',
                   'frothTime','milkTemp','foam','milkPrep','espPrep','rating','notes'];
     const cell = v => `"${String(v ?? '').replace(/"/g, '""')}"`;
     const list = ordered(shots);                       // the whole log, current sort
@@ -777,30 +879,51 @@
 
   $('#importBtn').addEventListener('click', () => $('#importFile').click());
   $('#importFile').addEventListener('change', async e => {
-    const file = e.target.files[0]; if (!file) return;
+    const file = e.target.files[0];
+    e.target.value = '';
+    if (!file) return;
+    if (!me) { toast('Add your name first'); askName(); return; }
+
+    let incoming;
     try {
-      const incoming = JSON.parse(await file.text());
+      incoming = JSON.parse(await file.text());
       if (!Array.isArray(incoming)) throw 0;
-      const have = new Set(shots.map(s => s.id));
-      const added = incoming.filter(s => s && s.id && !have.has(s.id)).map(migrate);
-      shots = shots.concat(added);
-      save(); render();
-      toast(`Imported ${added.length} shot${added.length === 1 ? '' : 's'}`);
     } catch {
       toast("That file isn't a shot log export");
+      return;
     }
-    e.target.value = '';
+
+    // Imported shots join the shared log under your name. One at a time, so a
+    // single bad row doesn't sink the rest.
+    const have = new Set(shots.map(s => s.id));
+    const todo = incoming.filter(s => s && s.id && !have.has(s.id)).map(migrate);
+    let added = 0;
+    for (const s of todo) {
+      try {
+        const { shot } = await api('POST', '/api/shots', { ...s, brewer: me });
+        shots.push(migrate(shot));
+        added++;
+      } catch { /* counted by omission, reported below */ }
+    }
+    render();
+    const failed = todo.length - added;
+    toast(`Imported ${added} shot${added === 1 ? '' : 's'}` +
+      (failed ? ` — ${failed} rejected` : ''));
   });
 
-  $('#clearAll').addEventListener('click', () => {
-    if (!shots.length) return;
-    const backup = JSON.stringify(shots, null, 2);
-    download(`shot-log-backup-${stamp()}.json`, backup, 'application/json');
-    shots = []; save(); stopEditing(); render();
-    toast('Log cleared — a backup file was saved');
-  });
+  $('#refreshBtn').addEventListener('click', () =>
+    refresh().then(() => toast('Log refreshed')).catch(() => toast('Could not reach the log')));
 
-  setStyle('hot'); paintAddins(); paintRate(); paintCalc(); render();
+  // Someone else's shots land while you're away, so re-read on return.
+  window.addEventListener('focus', () => refresh().catch(() => {}));
+
+  paintWho(); setStyle('hot'); paintAddins(); paintRate(); paintCalc(); render();
+  if (!me) askName();
+  refresh().catch(() => {
+    status = 'offline';
+    render();
+    toast('Could not reach the log');
+  });
 })();
 </script>
 </body>
