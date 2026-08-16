@@ -4,13 +4,17 @@ A single-file web app for recording latte experiments. No server, no build step,
 
 ## Use it
 
-Open `index.html` in a browser. On a Mac:
+It's live at **https://latte-recipe.dpipesster.workers.dev** — bookmark it, or add it to your phone's home screen.
+
+To run it locally instead, open `index.html` in a browser. On a Mac:
 
 ```sh
 open index.html
 ```
 
-Bookmark it, or add it to your phone's home screen if you serve the folder over your local network (`python3 -m http.server`).
+You can also serve the folder over your local network with `python3 -m http.server`.
+
+Every pull request gets its own preview deployment, linked in a comment on the PR.
 
 ## What it records
 
