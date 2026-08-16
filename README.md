@@ -18,9 +18,11 @@ Every pull request gets its own preview deployment, linked in a comment on the P
 
 ## What it records
 
-Per shot: beans, roast, grind setting, dose, yield, shot time, milk type, milk volume, milk temp, foam depth, a 1–10 rating, and tasting notes.
+Per shot: beans, roast, grind setting, grind time, dose, yield (ml), shot time, milk type, milk volume, milk temp, foam depth, a 1–10 rating, and tasting notes.
 
-Derived for you as you type: **brew ratio** (yield ÷ dose), **flow rate** (g/s), and **milk:espresso** ratio.
+Dose in grams is optional — machines that grind by time have no scale in the loop, so grind time is the field you'll actually set. Leave dose blank and the log stays honest about what you measured.
+
+Derived for you as you type: **flow rate** (ml/s), **milk:espresso** ratio, and — only when you've entered a weighed dose — **brew ratio** (yield ÷ dose).
 
 ## How it's meant to be used
 
