@@ -22,6 +22,8 @@
     --milk-dim:   #A79A8B;
     --steam:      #6E6055;
     --sour:       #B9C169;
+    --chill:      #7FA8C4;
+    --chill-dim:  #3D5568;
 
     --ui: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
     --display: "Instrument Serif", Georgia, serif;
@@ -84,9 +86,34 @@
   select{appearance:none;background-image:linear-gradient(45deg,transparent 50%,var(--steam) 50%),linear-gradient(135deg,var(--steam) 50%,transparent 50%);background-position:calc(100% - 14px) 50%,calc(100% - 9px) 50%;background-size:5px 5px;background-repeat:no-repeat;padding-right:1.8rem}
   input::placeholder{color:#4E4038}
 
+  /* hot / iced: the form shows only the fields that drink has */
+  .stylepick{display:flex;gap:.35rem;margin-bottom:1.4rem}
+  .stylepick button{
+    flex:1;padding:.45rem .6rem;font-family:var(--mono);font-size:.72rem;
+    letter-spacing:.14em;text-transform:uppercase;color:var(--steam);
+  }
+  .stylepick button[aria-pressed=true]{background:var(--crema);border-color:var(--crema);color:#1A0F07;font-weight:700}
+  .stylepick button[data-style=iced][aria-pressed=true]{background:var(--chill);border-color:var(--chill);color:#0C1620}
+  form[data-style=hot] [data-when=iced],
+  form[data-style=iced] [data-when=hot]{display:none}
+
+  /* add-ins: as many or as few as the drink had */
+  .addin-row{display:grid;grid-template-columns:1fr 62px 84px auto;gap:.4rem;margin-bottom:.4rem;align-items:center}
+  .addin-row>*{min-width:0}
+  .addin-row input,.addin-row select{font-size:.82rem;padding:.5rem .45rem}
+  .addin-row select{padding-right:1.4rem;background-position:calc(100% - 11px) 50%,calc(100% - 6px) 50%}
+  .addin-row .a-amt{-moz-appearance:textfield;appearance:textfield}
+  .addin-row .a-amt::-webkit-outer-spin-button,
+  .addin-row .a-amt::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+  .addin-row .x{padding:.35rem .45rem;font-size:.8rem;line-height:1;color:var(--steam);border-color:transparent}
+  .addin-row .x:hover{border-color:#8C4A3C;color:#E38B77}
+  .addin-add{width:100%;font-size:.78rem;font-family:var(--mono);letter-spacing:.1em;text-transform:uppercase;color:var(--milk-dim);border-style:dashed}
+  .addin-none{color:var(--steam);font-size:.82rem;font-style:italic;margin:.1rem 0 .6rem}
+
   /* rating: ten sips */
-  .rate{display:flex;gap:3px;margin-top:.15rem}
-  .rate input{position:absolute;opacity:0;pointer-events:none}
+  /* position:relative keeps the hidden radios from parking at the page's right edge */
+  .rate{display:flex;gap:3px;margin-top:.15rem;position:relative}
+  .rate input{position:absolute;left:0;top:0;opacity:0;pointer-events:none}
   .rate label{
     flex:1;height:26px;background:var(--roast-lift);border:1px solid var(--roast-edge);
     border-radius:1px;cursor:pointer;font-size:0;transition:background .12s ease;
@@ -118,9 +145,11 @@
   /* ---------- log ---------- */
   .log-head{display:flex;align-items:center;gap:.9rem;flex-wrap:wrap;margin-bottom:1.1rem}
   .log-head .sec-label{margin:0}
-  .sorts{display:flex;gap:.35rem;margin-left:auto}
+  .sorts{display:flex;gap:.35rem}
+  .sorts.right{margin-left:auto}
   .sorts button{padding:.3rem .55rem;font-size:.72rem;font-family:var(--mono);letter-spacing:.06em;text-transform:uppercase;color:var(--steam)}
   .sorts button[aria-pressed=true]{color:var(--roast);background:var(--milk-dim);border-color:var(--milk-dim)}
+  #filters button[data-filter=iced][aria-pressed=true]{background:var(--chill);border-color:var(--chill);color:#0C1620}
 
   ol.shots{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:1px;background:var(--roast-edge);border-block:1px solid var(--roast-edge)}
   li.shot{background:var(--roast);padding:1rem .25rem 1rem 0;display:grid;grid-template-columns:minmax(90px,140px) 1fr auto;gap:1.25rem;align-items:center}
@@ -135,6 +164,15 @@
   .glass .esp{background:linear-gradient(180deg,var(--espresso),#160C08)}
   .glass .mlk{background:linear-gradient(180deg,#FFFDF7 0%,var(--milk) 42%,#EADFCB 100%)}
   .glass .foam{background:repeating-linear-gradient(-45deg,#FFFDF8 0 3px,#F2E9DA 3px 6px)}
+  /* iced: same drink, colder light through it */
+  .glass.iced{box-shadow:inset 0 0 0 1px var(--chill-dim)}
+  .glass.iced .esp{background:linear-gradient(180deg,#241A18,#120B0A)}
+  .glass.iced .mlk{
+    background:
+      repeating-linear-gradient(-30deg,rgba(127,168,196,.30) 0 6px,rgba(127,168,196,0) 6px 13px),
+      linear-gradient(180deg,#F4FAFE 0%,#DCE9F2 48%,#BED2E0 100%);
+  }
+  .glass.iced .foam{background:repeating-linear-gradient(-45deg,#F6FBFF 0 3px,#DDE9F1 3px 6px)}
 
   .meta{min-width:0}
   .beans{font-family:var(--display);font-size:1.45rem;line-height:1.15;display:block}
@@ -142,6 +180,13 @@
   .nums{font-family:var(--mono);font-size:.8rem;color:var(--milk-dim);margin-top:.35rem;display:flex;flex-wrap:wrap;gap:.2rem 1rem}
   .nums span{white-space:nowrap}
   .nums b{color:var(--milk);font-weight:500}
+  .beans .icedtag{color:var(--chill)}
+  .chips{display:flex;flex-wrap:wrap;gap:.3rem;margin-top:.5rem}
+  .chip{
+    font-family:var(--mono);font-size:.68rem;letter-spacing:.04em;
+    border:1px solid var(--roast-edge);border-radius:999px;padding:.15rem .5rem;color:var(--milk-dim);
+  }
+  .chip b{color:var(--milk);font-weight:500}
   .note{font-size:.86rem;color:var(--steam);margin-top:.45rem;max-width:60ch;font-style:italic}
   .when{font-family:var(--mono);font-size:.68rem;letter-spacing:.1em;text-transform:uppercase;color:#4E4038;margin-top:.5rem}
 
@@ -181,8 +226,13 @@
   <div class="cols">
 
     <!-- ============ FORM ============ -->
-    <form class="pull" id="form" autocomplete="off">
+    <form class="pull" id="form" autocomplete="off" data-style="hot">
       <p class="sec-label" id="formTitle">Log a shot</p>
+
+      <div class="stylepick" id="stylePick" role="radiogroup" aria-label="Drink style">
+        <button type="button" data-style="hot" aria-pressed="true" role="radio" aria-checked="true">Hot</button>
+        <button type="button" data-style="iced" aria-pressed="false" role="radio" aria-checked="false">Iced</button>
+      </div>
 
       <fieldset>
         <div class="f">
@@ -235,11 +285,17 @@
             <option>oat</option><option>oat barista</option><option>almond</option><option>soy</option><option>none</option>
           </select>
         </div>
-        <div class="row three">
+        <div class="row">
           <div class="f">
             <label for="milkVol">Volume <span class="unit">ml</span></label>
             <input type="number" id="milkVol" name="milkVol" step="5" value="180">
           </div>
+          <div class="f">
+            <label for="frothTime">Froth <span class="unit">s</span></label>
+            <input type="number" id="frothTime" name="frothTime" step="1" placeholder="12">
+          </div>
+        </div>
+        <div class="row" data-when="hot">
           <div class="f">
             <label for="milkTemp">Temp <span class="unit">°F</span></label>
             <input type="number" id="milkTemp" name="milkTemp" step="1" value="140">
@@ -249,6 +305,43 @@
             <input type="number" id="foam" name="foam" step="1" value="8">
           </div>
         </div>
+        <div class="row" data-when="iced">
+          <div class="f">
+            <label for="milkPrep">Milk prep</label>
+            <select id="milkPrep" name="milkPrep">
+              <option value="cold">cold</option>
+              <option value="frothed">frothed</option>
+              <option value="cold foam">cold foam</option>
+            </select>
+          </div>
+          <div class="f">
+            <label for="espPrep">Espresso</label>
+            <select id="espPrep" name="espPrep">
+              <option value="over ice">over ice</option>
+              <option value="chilled">chilled</option>
+              <option value="poured on top">poured on top</option>
+            </select>
+          </div>
+        </div>
+      </fieldset>
+
+      <fieldset>
+        <p class="sec-label">Add-ins</p>
+        <div id="addins"></div>
+        <p class="addin-none" id="addinNone">Nothing but coffee and milk.</p>
+        <button type="button" class="addin-add" id="addinAdd">+ add ingredient</button>
+        <datalist id="addinlist"></datalist>
+        <template id="addinRow">
+          <div class="addin-row">
+            <input type="text" class="a-name" list="addinlist" placeholder="vanilla extract" aria-label="Ingredient">
+            <input type="number" class="a-amt" step="0.25" placeholder="5" aria-label="Amount">
+            <select class="a-unit" aria-label="Unit">
+              <option>g</option><option>ml</option><option>tsp</option><option>tbsp</option>
+              <option>pinch</option><option>pod</option><option>drop</option><option>ea</option>
+            </select>
+            <button type="button" class="x" aria-label="Remove ingredient">✕</button>
+          </div>
+        </template>
       </fieldset>
 
       <fieldset>
@@ -281,7 +374,12 @@
     <section>
       <div class="log-head">
         <p class="sec-label">The log</p>
-        <div class="sorts" id="sorts">
+        <div class="sorts" id="filters">
+          <button type="button" data-filter="all" aria-pressed="true">All</button>
+          <button type="button" data-filter="hot" aria-pressed="false">Hot</button>
+          <button type="button" data-filter="iced" aria-pressed="false">Iced</button>
+        </div>
+        <div class="sorts right" id="sorts">
           <button type="button" data-sort="date" aria-pressed="true">Newest</button>
           <button type="button" data-sort="rating" aria-pressed="false">Best</button>
           <button type="button" data-sort="ratio" aria-pressed="false">Ratio</button>
@@ -292,8 +390,8 @@
       <ol class="shots" id="shots"></ol>
 
       <div class="empty" id="empty">
-        <p class="big">Nothing pulled yet.</p>
-        <p>Save your first shot on the left. Every entry draws itself to scale, so the log reads as a shelf of drinks — dark bar is espresso, light bar is milk.</p>
+        <p class="big" id="emptyBig">Nothing pulled yet.</p>
+        <p id="emptySub">Save your first shot on the left. Every entry draws itself to scale, so the log reads as a shelf of drinks — dark bar is espresso, light bar is milk, cool blue means iced.</p>
       </div>
 
       <footer class="data">
@@ -312,22 +410,48 @@
 
 <script>
 (() => {
-  const KEY = 'latte.shots.v1';
+  const KEY = 'latte.shots.v2';
+  const KEY_V1 = 'latte.shots.v1';          // pre-iced logs, left in place as a fallback
+  const SUGGESTED_ADDINS = ['vanilla bean', 'vanilla extract', 'vanilla paste', 'honey',
+    'maple syrup', 'salt', 'cinnamon', 'cocoa', 'brown sugar'];
   const $ = s => document.querySelector(s);
   const els = {
     form: $('#form'), shots: $('#shots'), empty: $('#empty'), count: $('#count'),
     rate: $('#rate'), rateOut: $('#rateOut'), toast: $('#toast'),
     formTitle: $('#formTitle'), submitBtn: $('#submitBtn'), cancelBtn: $('#cancelBtn'),
-    beanlist: $('#beanlist')
+    beanlist: $('#beanlist'), addins: $('#addins'), addinNone: $('#addinNone'),
+    addinRow: $('#addinRow'), addinlist: $('#addinlist'), stylePick: $('#stylePick'),
+    emptyBig: $('#emptyBig'), emptySub: $('#emptySub')
   };
 
   let shots = load();
   let sort = 'date';
+  let filter = 'all';
   let editing = null;
 
+  // every record that reaches the app gets the v2 shape, whatever it arrived as
+  function migrate(s) {
+    return Object.assign({}, s, {
+      style: s.style === 'iced' ? 'iced' : 'hot',
+      addins: Array.isArray(s.addins)
+        ? s.addins
+            .filter(a => a && String(a.name || '').trim())
+            .map(a => ({ name: String(a.name).trim(), amt: a.amt ?? '', unit: a.unit || '' }))
+        : []
+    });
+  }
+
   function load() {
-    try { return JSON.parse(localStorage.getItem(KEY)) || []; }
-    catch { return []; }
+    const read = k => { try { return JSON.parse(localStorage.getItem(k)); } catch { return null; } };
+    const current = read(KEY);
+    if (Array.isArray(current)) return current.map(migrate);
+    const old = read(KEY_V1);
+    if (Array.isArray(old) && old.length) {
+      const moved = old.map(migrate);
+      localStorage.setItem(KEY, JSON.stringify(moved));   // v1 key stays untouched
+      return moved;
+    }
+    return [];
   }
   function save() {
     localStorage.setItem(KEY, JSON.stringify(shots));
@@ -338,6 +462,58 @@
     clearTimeout(toast.t);
     toast.t = setTimeout(() => els.toast.classList.remove('up'), 2200);
   }
+
+  // ---- hot / iced ----
+  function setStyle(style) {
+    els.form.dataset.style = style === 'iced' ? 'iced' : 'hot';
+    els.stylePick.querySelectorAll('button').forEach(b => {
+      const on = String(b.dataset.style === els.form.dataset.style);
+      b.setAttribute('aria-pressed', on);
+      b.setAttribute('aria-checked', on);
+    });
+  }
+  els.stylePick.addEventListener('click', e => {
+    const b = e.target.closest('button'); if (!b) return;
+    setStyle(b.dataset.style);
+  });
+
+  // ---- add-ins: one row per ingredient, however many the drink had ----
+  function addAddin(a = {}) {
+    const row = els.addinRow.content.firstElementChild.cloneNode(true);
+    row.querySelector('.a-name').value = a.name || '';
+    row.querySelector('.a-amt').value = a.amt ?? '';
+    if (a.unit) {
+      const sel = row.querySelector('.a-unit');
+      if (![...sel.options].some(o => o.value === a.unit)) sel.add(new Option(a.unit, a.unit));
+      sel.value = a.unit;
+    }
+    els.addins.appendChild(row);
+    paintAddins();
+    return row;
+  }
+  function setAddins(list) {
+    els.addins.innerHTML = '';
+    (list || []).forEach(addAddin);
+    paintAddins();
+  }
+  function readAddins() {
+    return [...els.addins.querySelectorAll('.addin-row')]
+      .map(r => ({
+        name: r.querySelector('.a-name').value.trim(),
+        amt: r.querySelector('.a-amt').value.trim(),
+        unit: r.querySelector('.a-unit').value
+      }))
+      .filter(a => a.name);
+  }
+  function paintAddins() {
+    els.addinNone.hidden = els.addins.children.length > 0;
+  }
+  $('#addinAdd').addEventListener('click', () => addAddin().querySelector('.a-name').focus());
+  els.addins.addEventListener('click', e => {
+    if (!e.target.closest('button.x')) return;
+    e.target.closest('.addin-row').remove();
+    paintAddins();
+  });
 
   // ---- rating widget: ten sips ----
   for (let i = 1; i <= 10; i++) {
@@ -369,8 +545,8 @@
   const fmtDate = ts => new Date(ts).toLocaleString(undefined,
     { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
 
-  function sorted() {
-    const s = shots.slice();
+  function ordered(list) {
+    const s = list.slice();
     if (sort === 'date')   s.sort((a, b) => b.ts - a.ts);
     if (sort === 'rating') s.sort((a, b) => b.rating - a.rating || b.ts - a.ts);
     // shots without a weighed dose have no ratio; park them at the end
@@ -379,38 +555,54 @@
     if (sort === 'beans')  s.sort((a, b) => a.beans.localeCompare(b.beans) || b.ts - a.ts);
     return s;
   }
+  function visible() {
+    return ordered(filter === 'all' ? shots : shots.filter(s => s.style === filter));
+  }
+  const addinText = s => (s.addins || [])
+    .map(a => a.name + (a.amt ? ' ' + a.amt + (a.unit || '') : ''))
+    .join('; ');
 
   function render() {
-    const list = sorted();
+    const list = visible();
     const best = shots.length ? Math.max(...shots.map(s => s.rating)) : 0;
-    // widest drink sets the scale so volumes are comparable across rows
+    // widest drink sets the scale so volumes stay comparable — across filters too
     const widest = Math.max(1, ...shots.map(s => (+s.yield || 0) + (+s.milkVol || 0)));
 
     els.shots.innerHTML = list.map(s => {
+      const iced = s.style === 'iced';
       const total = (+s.yield || 0) + (+s.milkVol || 0);
       const scale = total / widest;                  // 0..1 of the column
       const espPct = total ? (s.yield / total) * 100 : 100;
-      const foamPct = Math.min(45, (+s.foam || 0) * 1.6);
+      // iced drinks have no measured foam depth; cold foam still reads as a cap
+      const foamMm = iced ? (s.milkPrep === 'cold foam' ? 6 : 0) : (+s.foam || 0);
+      const foamPct = Math.min(45, foamMm * 1.6);
       const milkPct = Math.max(0, 100 - espPct - foamPct);
       const ratio = s.dose ? (s.yield / s.dose).toFixed(1) : '—';
       const flow = s.time ? (s.yield / s.time).toFixed(1) : '—';
+      const milkBits = iced
+        ? [`<span><b>${esc(s.milkVol)}</b>ml ${esc(s.milk)}, ${esc(s.milkPrep || 'cold')}</span>`,
+           s.espPrep ? `<span>shot ${esc(s.espPrep)}</span>` : '']
+        : [`<span><b>${esc(s.milkVol)}</b>ml ${esc(s.milk)} @ <b>${esc(s.milkTemp)}</b>°F</span>`,
+           `<span>${esc(s.foam)}mm foam</span>`];
+      if (s.frothTime) milkBits.push(`<span>frothed <b>${esc(s.frothTime)}</b>s</span>`);
       return `
       <li class="shot${s.rating === best && best > 0 ? ' best' : ''}" data-id="${s.id}">
-        <div class="glass" style="width:${(scale * 100).toFixed(1)}%" role="img"
-             aria-label="${esc(s.yield)} ml espresso with ${esc(s.milkVol)} ml ${esc(s.milk)} milk">
+        <div class="glass${iced ? ' iced' : ''}" style="width:${(scale * 100).toFixed(1)}%" role="img"
+             aria-label="${iced ? 'Iced' : 'Hot'}: ${esc(s.yield)} ml espresso with ${esc(s.milkVol)} ml ${esc(s.milk)} milk">
           <div class="esp" style="flex:0 0 ${espPct}%"></div>
           <div class="mlk" style="flex:0 0 ${milkPct}%"></div>
           <div class="foam" style="flex:0 0 ${foamPct}%"></div>
         </div>
         <div class="meta">
-          <span class="beans">${esc(s.beans)}<span class="roastnote">${esc(s.roast)}${s.grind ? ' · grind ' + esc(s.grind) : ''}</span></span>
+          <span class="beans">${esc(s.beans)}<span class="roastnote">${iced ? '<span class="icedtag">iced</span> · ' : ''}${esc(s.roast)}${s.grind ? ' · grind ' + esc(s.grind) : ''}</span></span>
           <div class="nums">
             <span>${s.dose ? `<b>${esc(s.dose)}</b>g` : `<b>${esc(s.grindTime)}</b>s grind`} in → <b>${esc(s.yield)}</b>ml out</span>
             ${s.dose ? `<span>1:<b>${ratio}</b></span>` : ''}
             <span><b>${esc(s.time)}</b>s · ${flow} ml/s</span>
-            <span><b>${esc(s.milkVol)}</b>ml ${esc(s.milk)} @ <b>${esc(s.milkTemp)}</b>°F</span>
-            <span>${esc(s.foam)}mm foam</span>
+            ${milkBits.join('')}
           </div>
+          ${(s.addins || []).length ? `<div class="chips">${s.addins.map(a =>
+            `<span class="chip"><b>${esc(a.name)}</b>${a.amt ? ' · ' + esc(a.amt) + ' ' + esc(a.unit) : ''}</span>`).join('')}</div>` : ''}
           ${s.notes ? `<p class="note">${esc(s.notes)}</p>` : ''}
           <div class="when">${fmtDate(s.ts)}</div>
         </div>
@@ -425,13 +617,26 @@
       </li>`;
     }).join('');
 
-    els.empty.hidden = shots.length > 0;
-    els.count.textContent = shots.length
-      ? `${shots.length} shot${shots.length > 1 ? 's' : ''} · avg ${(shots.reduce((a, s) => a + s.rating, 0) / shots.length).toFixed(1)}/10`
-      : '';
+    els.empty.hidden = list.length > 0;
+    if (!list.length && shots.length) {
+      els.emptyBig.textContent = `No ${filter} drinks yet.`;
+      els.emptySub.textContent = `You've logged ${shots.length} shot${shots.length > 1 ? 's' : ''}, just none of them ${filter}. Switch the filter back to All, or log one.`;
+    } else {
+      els.emptyBig.textContent = 'Nothing pulled yet.';
+      els.emptySub.textContent = 'Save your first shot on the left. Every entry draws itself to scale, so the log reads as a shelf of drinks — dark bar is espresso, light bar is milk, cool blue means iced.';
+    }
+
+    const avg = l => (l.reduce((a, s) => a + s.rating, 0) / l.length).toFixed(1);
+    els.count.textContent = !shots.length ? ''
+      : list.length === shots.length
+        ? `${shots.length} shot${shots.length > 1 ? 's' : ''} · avg ${avg(shots)}/10`
+        : `${list.length} of ${shots.length} shots${list.length ? ` · avg ${avg(list)}/10` : ''}`;
 
     const beans = [...new Set(shots.map(s => s.beans))];
     els.beanlist.innerHTML = beans.map(b => `<option value="${esc(b)}">`).join('');
+    const names = [...new Set([...SUGGESTED_ADDINS,
+      ...shots.flatMap(s => (s.addins || []).map(a => a.name))])];
+    els.addinlist.innerHTML = names.map(n => `<option value="${esc(n)}">`).join('');
   }
 
   function esc(v) {
@@ -443,14 +648,22 @@
   els.form.addEventListener('submit', e => {
     e.preventDefault();
     const f = els.form.elements;
+    const iced = els.form.dataset.style === 'iced';
     const shot = {
       id: editing || (Date.now().toString(36) + Math.random().toString(36).slice(2, 6)),
       ts: editing ? (shots.find(s => s.id === editing).ts) : Date.now(),
+      style: iced ? 'iced' : 'hot',
       beans: f.beans.value.trim(), roast: f.roast.value, grind: f.grind.value,
       grindTime: +f.grindTime.value, dose: f.dose.value === '' ? null : +f.dose.value,
       yield: +f.yield.value, time: +f.time.value,
-      milk: f.milk.value, milkVol: +f.milkVol.value, milkTemp: +f.milkTemp.value,
-      foam: +f.foam.value, rating: +f.rating.value, notes: f.notes.value.trim()
+      milk: f.milk.value, milkVol: +f.milkVol.value,
+      frothTime: f.frothTime.value === '' ? '' : +f.frothTime.value,
+      milkTemp: iced ? '' : +f.milkTemp.value,
+      foam: iced ? '' : +f.foam.value,
+      milkPrep: iced ? f.milkPrep.value : '',
+      espPrep: iced ? f.espPrep.value : '',
+      addins: readAddins(),
+      rating: +f.rating.value, notes: f.notes.value.trim()
     };
     if (editing) {
       shots[shots.findIndex(s => s.id === editing)] = shot;
@@ -464,13 +677,20 @@
     save(); render(); paintCalc();
   });
 
-  function fill(s) {
+  function fill(rec) {
+    const s = migrate(rec);
     const f = els.form.elements;
+    setStyle(s.style);
     f.beans.value = s.beans; f.roast.value = s.roast; f.grind.value = s.grind;
     f.grindTime.value = s.grindTime ?? ''; f.dose.value = s.dose ?? '';
     f.yield.value = s.yield; f.time.value = s.time;
-    f.milk.value = s.milk; f.milkVol.value = s.milkVol; f.milkTemp.value = s.milkTemp;
-    f.foam.value = s.foam; f.notes.value = s.notes;
+    f.milk.value = s.milk; f.milkVol.value = s.milkVol;
+    f.frothTime.value = s.frothTime ?? '';
+    f.milkTemp.value = s.milkTemp ?? ''; f.foam.value = s.foam ?? '';
+    f.milkPrep.value = s.milkPrep || 'cold';
+    f.espPrep.value = s.espPrep || 'over ice';
+    f.notes.value = s.notes;
+    setAddins(s.addins);
     els.rate.querySelector(`#r${s.rating}`).checked = true;
     paintRate(); paintCalc();
   }
@@ -510,12 +730,21 @@
     }
   });
 
-  // ---- sorting ----
+  // ---- sorting + filtering ----
+  function pickOne(container, b) {
+    container.querySelectorAll('button').forEach(x =>
+      x.setAttribute('aria-pressed', String(x === b)));
+  }
   $('#sorts').addEventListener('click', e => {
     const b = e.target.closest('button'); if (!b) return;
     sort = b.dataset.sort;
-    $('#sorts').querySelectorAll('button').forEach(x =>
-      x.setAttribute('aria-pressed', String(x === b)));
+    pickOne($('#sorts'), b);
+    render();
+  });
+  $('#filters').addEventListener('click', e => {
+    const b = e.target.closest('button'); if (!b) return;
+    filter = b.dataset.filter;
+    pickOne($('#filters'), b);
     render();
   });
 
@@ -532,19 +761,18 @@
     download(`shot-log-${stamp()}.json`, JSON.stringify(shots, null, 2), 'application/json'));
 
   $('#exportCsv').addEventListener('click', () => {
-    const cols = ['ts','beans','roast','grind','grindTime','dose','yield','time','milk','milkVol','milkTemp','foam','rating','notes'];
+    const cols = ['ts','style','beans','roast','grind','grindTime','dose','yield','time','milk','milkVol',
+                  'frothTime','milkTemp','foam','milkPrep','espPrep','rating','notes'];
     const cell = v => `"${String(v ?? '').replace(/"/g, '""')}"`;
-    const rows = sorted().map(s => [
+    const list = ordered(shots);                       // the whole log, current sort
+    const head = ['date', ...cols.slice(1), 'addins', 'brew_ratio'].join(',');
+    const rows = list.map(s => [
       new Date(s.ts).toISOString(),
-      ...cols.slice(1).map(c => s[c])
+      ...cols.slice(1).map(c => s[c]),
+      addinText(s),
+      s.dose ? '1:' + (s.yield / s.dose).toFixed(2) : ''
     ].map(cell).join(','));
-    download(`shot-log-${stamp()}.csv`,
-      [['date', ...cols.slice(1), 'brew_ratio'].join(','),
-       ...rows.map((r, i) => {
-         const s = sorted()[i];
-         return r + ',' + cell(s.dose ? '1:' + (s.yield / s.dose).toFixed(2) : '');
-       })].join('\n'),
-      'text/csv');
+    download(`shot-log-${stamp()}.csv`, [head, ...rows].join('\n'), 'text/csv');
   });
 
   $('#importBtn').addEventListener('click', () => $('#importFile').click());
@@ -554,7 +782,7 @@
       const incoming = JSON.parse(await file.text());
       if (!Array.isArray(incoming)) throw 0;
       const have = new Set(shots.map(s => s.id));
-      const added = incoming.filter(s => s && s.id && !have.has(s.id));
+      const added = incoming.filter(s => s && s.id && !have.has(s.id)).map(migrate);
       shots = shots.concat(added);
       save(); render();
       toast(`Imported ${added.length} shot${added.length === 1 ? '' : 's'}`);
@@ -572,7 +800,7 @@
     toast('Log cleared — a backup file was saved');
   });
 
-  paintRate(); paintCalc(); render();
+  setStyle('hot'); paintAddins(); paintRate(); paintCalc(); render();
 })();
 </script>
 </body>
