@@ -6,13 +6,13 @@ A single-file web app for recording latte experiments. No server, no build step,
 
 It's live at **https://latte-recipe.dpipesster.workers.dev** — bookmark it, or add it to your phone's home screen.
 
-To run it locally instead, open `index.html` in a browser. On a Mac:
+To run it locally instead, open `public/index.html` in a browser. On a Mac:
 
 ```sh
-open index.html
+open public/index.html
 ```
 
-You can also serve the folder over your local network with `python3 -m http.server`.
+You can also serve the folder over your local network with `python3 -m http.server -d public`.
 
 Every pull request gets its own preview deployment, linked in a comment on the PR.
 
@@ -64,4 +64,4 @@ Clearing your browser's site data for this page deletes the log, so export a bac
 
 ## Tests
 
-The app's behavior is covered by a jsdom harness — 101 assertions over v1→v2 migration, hot and iced round-trips, grinding by time with no weighed dose, add-in rows (adding, removing, blank-row dropping, suggestions), filtering with sorting, empty states, **Again**, escaping, CSV columns, JSON import, and corrupt-storage recovery. It lives outside the repo in the scratchpad; to re-run it, `npm i jsdom` somewhere and `node test.mjs /path/to/index.html`.
+The app's behavior is covered by a jsdom harness — 101 assertions over v1→v2 migration, hot and iced round-trips, grinding by time with no weighed dose, add-in rows (adding, removing, blank-row dropping, suggestions), filtering with sorting, empty states, **Again**, escaping, CSV columns, JSON import, and corrupt-storage recovery. It lives outside the repo in the scratchpad; to re-run it, `npm i jsdom` somewhere and `node test.mjs public/index.html`.
