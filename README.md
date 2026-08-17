@@ -1,24 +1,27 @@
 # Shot Log
 
-A single-file web app for recording latte experiments. No server, no build step, no dependencies.
+A web app for recording latte experiments, shared by everyone who uses it. The frontend is still a single file with no build step and no dependencies; behind it sits a small Cloudflare Worker and a D1 database holding one shared log.
 
 ## Use it
 
 It's live at **https://latte-recipe.dpipesster.workers.dev** — bookmark it, or add it to your phone's home screen.
 
-To run it locally instead, open `public/index.html` in a browser. On a Mac:
+Set a brewer name in the header on your first visit. Every shot you log is attributed to that name and goes into the shared log, so your shots follow you between devices and everyone sees the same list.
+
+To run it locally you need Wrangler, since the log lives behind an API:
 
 ```sh
-open public/index.html
+npx wrangler d1 execute latte-shots --local --file=./schema.sql   # once
+npx wrangler dev                                                  # http://localhost:8787
 ```
 
-You can also serve the folder over your local network with `python3 -m http.server -d public`.
+Opening `public/index.html` straight from the filesystem no longer works — there's no API to talk to.
 
-Every pull request gets its own preview deployment, linked in a comment on the PR.
+Every pull request gets its own preview deployment, linked in a comment on the PR. Note that previews share the production database, so shots logged from a preview URL land in the real log.
 
 ## What it records
 
-Every shot: beans, roast, grind setting, grind time, dose, yield (ml), shot time, milk type, milk volume, frothing time, any number of add-ins, a 1–10 rating, and tasting notes.
+Every shot: who brewed it, beans, roast, grind setting, grind time, dose, yield (ml), shot time, milk type, milk volume, frothing time, any number of add-ins, a 1–10 rating, and tasting notes.
 
 **Hot** or **iced** is the first thing you pick, and the form follows:
 
@@ -49,19 +52,44 @@ Each row draws the drink to scale: dark bar is espresso, light bar is milk, hatc
 
 Filter the log with **All / Hot / Iced**, sort by **Best** to see what's working, or by **Ratio** to see whether your ratings track extraction. Bar widths stay on the same scale when you filter, so proportions remain comparable.
 
-## Your data
+## The shared log
 
-Shots live in your browser's `localStorage` under `latte.shots.v2` — they stay on this machine, in this browser profile.
+Shots live in a Cloudflare D1 database and are served by the Worker in `src/api.js`. Everyone using the app reads and writes the same log. The only thing kept in your browser is your brewer name, under `latte.brewer.v1`.
 
-Logs written before iced drinks existed lived under `latte.shots.v1`. They're migrated on first load — every old shot becomes a hot latte with no add-ins — and the `v1` key is left in place untouched, so the old app still opens the old data if you ever need it.
+Shots logged before this — the ones under `latte.shots.v1` and `latte.shots.v2` — were never uploaded. Those keys are left untouched, so an older build still opens that data if you need it back.
 
-- **Export JSON** — full backup, re-importable.
-- **Export CSV** — for spreadsheets and charts; the whole log in the current sort order, with `style`, `grindTime`, `frothTime`, `milkPrep`, `espPrep`, a flattened `addins` column (`vanilla bean 0.25pod; salt 1pinch`), and a `brew_ratio` computed for the shots that have a weighed dose.
-- **Import JSON** — merges a backup in, skipping shots already present. Pre-iced exports are normalized on the way in.
-- **Clear all** — downloads a backup file first, then empties the log.
+Records are normalized to the v2 shape on the way in and out, so a pre-iced export still imports cleanly: every old shot becomes a hot latte with no add-ins.
 
-Clearing your browser's site data for this page deletes the log, so export a backup now and then.
+- **Export JSON** — full backup of the whole shared log.
+- **Export CSV** — for spreadsheets and charts; the whole log in the current sort order, with `brewer`, `style`, `grindTime`, `frothTime`, `milkPrep`, `espPrep`, a flattened `addins` column (`vanilla bean 0.25pod; salt 1pinch`), and a `brew_ratio` computed for the shots that have a weighed dose.
+- **Import JSON** — uploads shots from a file into the shared log under your name, skipping ids already present.
+- **Refresh** — re-reads the log. It also refreshes on its own whenever you return to the tab.
+
+Edit and Delete only appear on shots logged under your own name. That's a courtesy, not a security boundary: names are self-asserted, and the server can't tell one brewer from another. Don't put anything private in here.
+
+There's no undo in the app. To wipe the log:
+
+```sh
+npx wrangler d1 execute latte-shots --remote --command "DELETE FROM shots"
+```
+
+D1's Time Travel can restore the database to a point in time if that goes wrong.
+
+## The API
+
+Same-origin JSON under `/api/`, all unauthenticated:
+
+| | |
+|---|---|
+| `GET /api/shots` | the whole log, newest first |
+| `POST /api/shots` | add a shot |
+| `PUT /api/shots/:id` | replace a shot |
+| `DELETE /api/shots/:id` | remove a shot |
+
+Writes are whitelisted field by field, capped at 4 KB, rejected cross-origin, rate limited to 20 per minute per IP, and refused once the log passes 5,000 rows.
 
 ## Tests
 
-The app's behavior is covered by a jsdom harness — 101 assertions over v1→v2 migration, hot and iced round-trips, grinding by time with no weighed dose, add-in rows (adding, removing, blank-row dropping, suggestions), filtering with sorting, empty states, **Again**, escaping, CSV columns, JSON import, and corrupt-storage recovery. It lives outside the repo in the scratchpad; to re-run it, `npm i jsdom` somewhere and `node test.mjs public/index.html`.
+A jsdom harness drives the real `public/index.html` against a running `wrangler dev`, with two simulated brewers on separate windows: hot and iced round-trips through the API, grinding by time with no weighed dose, add-in rows surviving the trip to the database and back, attribution and Edit/Delete gating, optimistic rollback on both failed and rejected saves, filtering with sorting, empty states, **Again**, escaping, and CSV columns.
+
+It lives outside the repo in the scratchpad; to re-run it, start `npx wrangler dev`, then `npm i jsdom` somewhere and `node test.mjs`.
