@@ -103,6 +103,10 @@
   .stylepick button[data-style=iced][aria-pressed=true]{background:var(--chill);border-color:var(--chill);color:#0C1620}
   form[data-style=hot] [data-when=iced],
   form[data-style=iced] [data-when=hot]{display:none}
+  /* milk "none": a drink with no milk has nothing to measure, froth or steam */
+  form[data-milk=none] [data-milk-only]{display:none}
+  /* the iced row loses its milk half, so the espresso half takes the width */
+  form[data-milk=none] .row[data-when=iced]{grid-template-columns:1fr}
 
   /* add-ins: as many or as few as the drink had */
   .addin-row{display:grid;grid-template-columns:1fr 62px 84px auto;gap:.4rem;margin-bottom:.4rem;align-items:center}
@@ -300,7 +304,7 @@
             <option>oat</option><option>oat barista</option><option>almond</option><option>soy</option><option>none</option>
           </select>
         </div>
-        <div class="row">
+        <div class="row" data-milk-only>
           <div class="f">
             <label for="milkVol">Volume <span class="unit">ml</span></label>
             <input type="number" id="milkVol" name="milkVol" step="5" value="180">
@@ -310,7 +314,7 @@
             <input type="number" id="frothTime" name="frothTime" step="1" placeholder="12">
           </div>
         </div>
-        <div class="row" data-when="hot">
+        <div class="row" data-when="hot" data-milk-only>
           <div class="f">
             <label for="milkTemp">Temp <span class="unit">°F</span></label>
             <input type="number" id="milkTemp" name="milkTemp" step="1" value="140">
@@ -321,7 +325,7 @@
           </div>
         </div>
         <div class="row" data-when="iced">
-          <div class="f">
+          <div class="f" data-milk-only>
             <label for="milkPrep">Milk prep</label>
             <select id="milkPrep" name="milkPrep">
               <option value="cold">cold</option>
@@ -376,7 +380,7 @@
       <div class="calc">
         <span id="cRatioWrap" hidden>Brew ratio <b id="cRatio">—</b></span>
         <span>Flow <b id="cFlow">1.1 ml/s</b></span>
-        <span>Milk:espresso <b id="cDrink">5.0:1</b></span>
+        <span id="cDrinkWrap">Milk:espresso <b id="cDrink">5.0:1</b></span>
       </div>
 
       <div class="actions">
@@ -532,6 +536,16 @@
     setStyle(b.dataset.style);
   });
 
+  // ---- milk / no milk ----
+  // "none" is a straight espresso: volume, froth, temp, foam and milk prep all
+  // stop applying, so the form drops them the way it drops the wrong style's fields.
+  const noMilk = () => els.form.elements.milk.value === 'none';
+  function setMilk() {
+    els.form.dataset.milk = noMilk() ? 'none' : 'some';
+    paintAddins();               // "nothing but coffee" — and milk, when there is some
+  }
+  els.form.elements.milk.addEventListener('change', () => { setMilk(); paintCalc(); });
+
   // ---- add-ins: one row per ingredient, however many the drink had ----
   function addAddin(a = {}) {
     const row = els.addinRow.content.firstElementChild.cloneNode(true);
@@ -562,6 +576,7 @@
   }
   function paintAddins() {
     els.addinNone.hidden = els.addins.children.length > 0;
+    els.addinNone.textContent = noMilk() ? 'Nothing but coffee.' : 'Nothing but coffee and milk.';
   }
   $('#addinAdd').addEventListener('click', () => addAddin().querySelector('.a-name').focus());
   els.addins.addEventListener('click', e => {
@@ -592,6 +607,8 @@
     $('#cRatioWrap').hidden = !d;
     $('#cRatio').textContent = d ? '1:' + (y / d).toFixed(1) : '—';
     $('#cFlow').textContent  = t ? (y / t).toFixed(1) + ' ml/s' : '—';
+    // no milk, no milk:espresso ratio
+    $('#cDrinkWrap').hidden = noMilk();
     $('#cDrink').textContent = y ? (m / y).toFixed(1) + ':1' : '—';
   }
   els.form.addEventListener('input', paintCalc);
@@ -613,6 +630,9 @@
   function visible() {
     return ordered(filter === 'all' ? shots : shots.filter(s => s.style === filter));
   }
+  // The type is what counts: a "none" row logged before the milk fields were
+  // hidden may still carry a stale volume, foam depth and temperature.
+  const milkOf = s => s.milk === 'none' ? 0 : (+s.milkVol || 0);
   const addinText = s => (s.addins || [])
     .map(a => a.name + (a.amt ? ' ' + a.amt + (a.unit || '') : ''))
     .join('; ');
@@ -621,29 +641,32 @@
     const list = visible();
     const best = shots.length ? Math.max(...shots.map(s => s.rating)) : 0;
     // widest drink sets the scale so volumes stay comparable — across filters too
-    const widest = Math.max(1, ...shots.map(s => (+s.yield || 0) + (+s.milkVol || 0)));
+    const widest = Math.max(1, ...shots.map(s => (+s.yield || 0) + milkOf(s)));
 
     els.shots.innerHTML = list.map(s => {
       const iced = s.style === 'iced';
-      const total = (+s.yield || 0) + (+s.milkVol || 0);
+      const milkVol = milkOf(s);
+      const total = (+s.yield || 0) + milkVol;
       const scale = total / widest;                  // 0..1 of the column
       const espPct = total ? (s.yield / total) * 100 : 100;
       // iced drinks have no measured foam depth; cold foam still reads as a cap
-      const foamMm = iced ? (s.milkPrep === 'cold foam' ? 6 : 0) : (+s.foam || 0);
+      const foamMm = !milkVol ? 0 : iced ? (s.milkPrep === 'cold foam' ? 6 : 0) : (+s.foam || 0);
       const foamPct = Math.min(45, foamMm * 1.6);
       const milkPct = Math.max(0, 100 - espPct - foamPct);
       const ratio = s.dose ? (s.yield / s.dose).toFixed(1) : '—';
       const flow = s.time ? (s.yield / s.time).toFixed(1) : '—';
-      const milkBits = iced
-        ? [`<span><b>${esc(s.milkVol)}</b>ml ${esc(s.milk)}, ${esc(s.milkPrep || 'cold')}</span>`,
-           s.espPrep ? `<span>shot ${esc(s.espPrep)}</span>` : '']
-        : [`<span><b>${esc(s.milkVol)}</b>ml ${esc(s.milk)} @ <b>${esc(s.milkTemp)}</b>°F</span>`,
-           `<span>${esc(s.foam)}mm foam</span>`];
-      if (s.frothTime) milkBits.push(`<span>frothed <b>${esc(s.frothTime)}</b>s</span>`);
+      const milkBits = s.milk === 'none'
+        ? ['<span>no milk</span>']
+        : iced
+          ? [`<span><b>${esc(s.milkVol)}</b>ml ${esc(s.milk)}, ${esc(s.milkPrep || 'cold')}</span>`]
+          : [`<span><b>${esc(s.milkVol)}</b>ml ${esc(s.milk)} @ <b>${esc(s.milkTemp)}</b>°F</span>`,
+             `<span>${esc(s.foam)}mm foam</span>`];
+      if (iced && s.espPrep) milkBits.push(`<span>shot ${esc(s.espPrep)}</span>`);
+      if (s.milk !== 'none' && s.frothTime) milkBits.push(`<span>frothed <b>${esc(s.frothTime)}</b>s</span>`);
       return `
       <li class="shot${s.rating === best && best > 0 ? ' best' : ''}" data-id="${s.id}">
         <div class="glass${iced ? ' iced' : ''}" style="width:${(scale * 100).toFixed(1)}%" role="img"
-             aria-label="${iced ? 'Iced' : 'Hot'}: ${esc(s.yield)} ml espresso with ${esc(s.milkVol)} ml ${esc(s.milk)} milk">
+             aria-label="${iced ? 'Iced' : 'Hot'}: ${esc(s.yield)} ml espresso ${milkVol ? `with ${esc(s.milkVol)} ml ${esc(s.milk)} milk` : 'and no milk'}">
           <div class="esp" style="flex:0 0 ${espPct}%"></div>
           <div class="mlk" style="flex:0 0 ${milkPct}%"></div>
           <div class="foam" style="flex:0 0 ${foamPct}%"></div>
@@ -714,6 +737,7 @@
 
     const f = els.form.elements;
     const iced = els.form.dataset.style === 'iced';
+    const dry = noMilk();          // the milk fields are hidden; don't save what they hold
     const shot = {
       id: editing || (Date.now().toString(36) + Math.random().toString(36).slice(2, 6)),
       ts: editing ? (shots.find(s => s.id === editing).ts) : Date.now(),
@@ -722,11 +746,11 @@
       beans: f.beans.value.trim(), roast: f.roast.value, grind: f.grind.value,
       grindTime: +f.grindTime.value, dose: f.dose.value === '' ? null : +f.dose.value,
       yield: +f.yield.value, time: +f.time.value,
-      milk: f.milk.value, milkVol: +f.milkVol.value,
-      frothTime: f.frothTime.value === '' ? '' : +f.frothTime.value,
-      milkTemp: iced ? '' : +f.milkTemp.value,
-      foam: iced ? '' : +f.foam.value,
-      milkPrep: iced ? f.milkPrep.value : '',
+      milk: f.milk.value, milkVol: dry ? 0 : +f.milkVol.value,
+      frothTime: dry || f.frothTime.value === '' ? '' : +f.frothTime.value,
+      milkTemp: iced || dry ? '' : +f.milkTemp.value,
+      foam: iced || dry ? '' : +f.foam.value,
+      milkPrep: iced && !dry ? f.milkPrep.value : '',
       espPrep: iced ? f.espPrep.value : '',
       addins: readAddins(),
       rating: +f.rating.value, notes: f.notes.value.trim()
@@ -767,7 +791,7 @@
     f.beans.value = s.beans; f.roast.value = s.roast; f.grind.value = s.grind;
     f.grindTime.value = s.grindTime ?? ''; f.dose.value = s.dose ?? '';
     f.yield.value = s.yield; f.time.value = s.time;
-    f.milk.value = s.milk; f.milkVol.value = s.milkVol;
+    f.milk.value = s.milk; setMilk(); f.milkVol.value = s.milkVol;
     f.frothTime.value = s.frothTime ?? '';
     f.milkTemp.value = s.milkTemp ?? ''; f.foam.value = s.foam ?? '';
     f.milkPrep.value = s.milkPrep || 'cold';
@@ -917,7 +941,7 @@
   // Someone else's shots land while you're away, so re-read on return.
   window.addEventListener('focus', () => refresh().catch(() => {}));
 
-  paintWho(); setStyle('hot'); paintAddins(); paintRate(); paintCalc(); render();
+  paintWho(); setStyle('hot'); setMilk(); paintAddins(); paintRate(); paintCalc(); render();
   if (!me) askName();
   refresh().catch(() => {
     status = 'offline';

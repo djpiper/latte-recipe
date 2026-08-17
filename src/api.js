@@ -107,6 +107,8 @@ function clean(body) {
   if (!Number.isInteger(rating) || rating < 1 || rating > 10) throw new Invalid('rating must be a whole number from 1 to 10');
 
   const style = pick(body, 'style', STYLES, { required: true });
+  const milk = pick(body, 'milk', MILKS, { required: true });
+  const dry = milk === 'none';   // no milk in the drink, so nothing about it to record
 
   // grind stays text on purpose: the form never coerces it, and '' must stay falsy
   return {
@@ -119,14 +121,15 @@ function clean(body) {
     dose: maybeNum(body, 'dose'),
     yield: num(body, 'yield'),
     time: num(body, 'time'),
-    milk: pick(body, 'milk', MILKS, { required: true }),
-    milkVol: num(body, 'milkVol'),
-    frothTime: maybeNum(body, 'frothTime'),
-    // The form blanks the fields that don't apply to the chosen style; hold it
-    // to that so an iced drink can't carry a foam depth.
-    milkTemp: style === 'iced' ? null : maybeNum(body, 'milkTemp'),
-    foam: style === 'iced' ? null : maybeNum(body, 'foam'),
-    milkPrep: style === 'iced' ? pick(body, 'milkPrep', MILK_PREPS) : '',
+    milk,
+    // The form blanks the fields that don't apply to the chosen style — and hides
+    // the milk fields outright when the milk is 'none'. Hold it to both, so an
+    // iced drink can't carry a foam depth and a milkless one can't carry a volume.
+    milkVol: dry ? 0 : num(body, 'milkVol'),
+    frothTime: dry ? null : maybeNum(body, 'frothTime'),
+    milkTemp: style === 'iced' || dry ? null : maybeNum(body, 'milkTemp'),
+    foam: style === 'iced' || dry ? null : maybeNum(body, 'foam'),
+    milkPrep: style === 'iced' && !dry ? pick(body, 'milkPrep', MILK_PREPS) : '',
     espPrep: style === 'iced' ? pick(body, 'espPrep', ESP_PREPS) : '',
     addins: cleanAddins(body.addins),
     rating,
