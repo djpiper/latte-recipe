@@ -11,11 +11,14 @@ const ROASTS = ['light', 'medium', 'med-dark', 'dark'];
 const MILKS = ['whole', '2%', 'skim', 'oat', 'oat barista', 'almond', 'soy', 'none'];
 const MILK_PREPS = ['cold', 'frothed', 'cold foam'];
 const ESP_PREPS = ['over ice', 'chilled', 'poured on top'];
+// Water has no varieties worth logging — either it's in the drink or it isn't.
+const WATERS = ['none', 'some'];
 
 // [min, max] for every number the form can produce
 const RANGES = {
   grindTime: [0, 120], dose: [0, 100], yield: [0, 500], time: [0, 600],
-  milkVol: [0, 1000], frothTime: [0, 300], milkTemp: [0, 250], foam: [0, 100]
+  milkVol: [0, 1000], frothTime: [0, 300], milkTemp: [0, 250], foam: [0, 100],
+  waterVol: [0, 1000], waterTemp: [0, 250]
 };
 // max length for every free-text field
 const LENGTHS = { brewer: 32, beans: 80, grind: 16, notes: 500 };
@@ -23,11 +26,12 @@ const LENGTHS = { brewer: 32, beans: 80, grind: 16, notes: 500 };
 // Numbers the form leaves blank depending on style or method. They arrive as ''
 // (or null for dose), store as NULL, and go back out in the shape the client
 // models: dose as null, the rest as ''.
-const OPTIONAL_NUMS = { grindTime: '', dose: null, frothTime: '', milkTemp: '', foam: '' };
+const OPTIONAL_NUMS = { grindTime: '', dose: null, frothTime: '', milkTemp: '', foam: '', waterTemp: '' };
 
 const COLS = ['id', 'brewer', 'ts', 'style', 'beans', 'roast', 'grind', 'grindTime',
   'dose', 'yield', 'time', 'milk', 'milkVol', 'frothTime', 'milkTemp', 'foam',
-  'milkPrep', 'espPrep', 'addins', 'rating', 'notes', 'updated_at'];
+  'milkPrep', 'espPrep', 'water', 'waterVol', 'waterTemp', 'addins', 'rating',
+  'notes', 'updated_at'];
 
 function json(body, status = 200) {
   return new Response(JSON.stringify(body), {
@@ -109,6 +113,9 @@ function clean(body) {
   const style = pick(body, 'style', STYLES, { required: true });
   const milk = pick(body, 'milk', MILKS, { required: true });
   const dry = milk === 'none';   // no milk in the drink, so nothing about it to record
+  // Shots logged before water was a field carry no `water` key at all; they're dry too.
+  const water = pick(body, 'water', WATERS) || 'none';
+  const neat = water === 'none';
 
   // grind stays text on purpose: the form never coerces it, and '' must stay falsy
   return {
@@ -131,6 +138,11 @@ function clean(body) {
     foam: style === 'iced' || dry ? null : maybeNum(body, 'foam'),
     milkPrep: style === 'iced' && !dry ? pick(body, 'milkPrep', MILK_PREPS) : '',
     espPrep: style === 'iced' ? pick(body, 'espPrep', ESP_PREPS) : '',
+    water,
+    // Same deal as milk: the form hides the water fields when there is no water,
+    // so a water-free drink can't come back carrying a volume or a temperature.
+    waterVol: neat ? 0 : num(body, 'waterVol'),
+    waterTemp: neat ? null : maybeNum(body, 'waterTemp'),
     addins: cleanAddins(body.addins),
     rating,
     notes: str(body, 'notes')
